@@ -60,8 +60,11 @@ public abstract class AbstractStockService implements StockService {
 
     protected abstract List<StockLimitation> loadStockLimitations();
 
+    protected abstract void beforeLock(StockCtrl lockedStockCtrl);
+
     @Override
     public void lock(StockCtrl stockCtrl) {
+        beforeLock(stockCtrl);
         //
         StockLimitation stockLimitation = getStockLimitation(getKeyWithStockCtrl(stockCtrl));
         if(stockLimitation==null) {

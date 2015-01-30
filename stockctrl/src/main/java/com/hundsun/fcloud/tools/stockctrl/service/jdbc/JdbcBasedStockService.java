@@ -64,6 +64,31 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     @Override
+    protected void beforeLock(StockCtrl lockedStockCtrl) {
+        Connection connection = null;
+        try {
+            connection = queryRunner.getDataSource().getConnection();
+            //
+            lockedStockCtrl = loadStockCtrlByRequestNo(connection, lockedStockCtrl.getRequestNo());
+            if (lockedStockCtrl != null) {
+                logger.error("申请编号重复: " + lockedStockCtrl.getRequestNo());
+                throw new RuntimeException("申请编号重复: " + lockedStockCtrl.getRequestNo());
+            }
+            //
+        } catch (SQLException e) {
+            logger.error(e.getMessage(), e);
+        } finally {
+            if(connection!=null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    logger.error(e.getMessage(), e);
+                }
+            }
+        }
+    }
+
+    @Override
     protected void afterSuccessLock(StockLimitation stockLimitation, StockCtrl lockedStockCtrl) {
         //
         Connection connection = null;
@@ -197,6 +222,31 @@ public class JdbcBasedStockService extends AbstractStockService {
     private void updateStockLimitation(StockLimitation stockLimitation) {
         //
 
+    }
+
+    private static final String LOAD_STOCK_CTRL_BY_REQUEST_NO = "select * from STOCK_CTRL_LIST " +
+            "where REQUEST_NO = ?";
+    private StockCtrl loadStockCtrlByRequestNo(Connection connection, String requestNo) throws SQLException {
+        StockCtrl stockCtrl = null;
+        List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_CTRL_BY_REQUEST_NO, new MapListHandler(), requestNo);
+        for(Map<String, Object> map : mapList) {
+            //
+            BigDecimal balance = (BigDecimal) map.get("BALANCE");
+            String tradeAcco = (String) map.get("TRADE_ACCO");
+            String stockCode = (String) map.get("STOCK_CODE");
+            String bizCode = (String) map.get("BIZ_CODE");
+            TIMESTAMP requestDate = (TIMESTAMP) map.get("REQUEST_DATE");
+            //
+            stockCtrl = new StockCtrl();
+            stockCtrl.setRequestNo(requestNo);
+            stockCtrl.setBalance(balance.longValue());
+            stockCtrl.setTradeAcco(tradeAcco);
+            stockCtrl.setStockCode(stockCode);
+            stockCtrl.setBizCode(bizCode);
+            stockCtrl.setRequestDate(requestDate.timestampValue());
+        }
+
+        return stockCtrl;
     }
 
     private static final String LOAD_STOCK_CTRLS_BY_LIMIT_NAME = "select * from STOCK_CTRL_LIST " +
