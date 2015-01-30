@@ -35,8 +35,8 @@
         </dependency>
 
         <dependency>
-            <groupId>org.slf4j</groupId>
-            <artifactId>slf4j-api</artifactId>
+            <groupId>org.ops4j.pax.logging</groupId>
+            <artifactId>pax-logging-api</artifactId>
         </dependency>
 
         <dependency>
@@ -44,10 +44,12 @@
             <artifactId>commons-dbutils</artifactId>
             <version>1.6</version>
         </dependency>
+
         <dependency>
             <groupId>ojdbc</groupId>
             <artifactId>ojdbc</artifactId>
             <version>14</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
