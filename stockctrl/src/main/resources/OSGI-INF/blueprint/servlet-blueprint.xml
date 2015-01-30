@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+           xmlns:cm="http://aries.apache.org/blueprint/xmlns/blueprint-cm/v1.3.0"
+           xsi:schemaLocation="http://www.osgi.org/xmlns/blueprint/v1.0.0 http://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd">
+
+    <!-- OSGI blueprint property placeholder -->
+    <cm:property-placeholder persistent-id="stockctrl" update-strategy="reload">
+        <cm:default-properties>
+            <cm:property name="timer.delay" value="60"/>
+            <cm:property name="timer.period" value="60"/>
+            <cm:property name="timeout.pay" value="40"/>
+        </cm:default-properties>
+    </cm:property-placeholder>
+
+
+    <bean class="com.hundsun.fcloud.tools.stockctrl.servlet.StockCtrlServlet">
+        <property name="stockService" ref="stockService"/>
+    </bean>
+
+    <bean class="com.hundsun.fcloud.tools.stockctrl.servlet.StockQueryServlet">
+        <property name="stockService" ref="stockService"/>
+    </bean>
+
+    <bean id="stockService"
+          init-method="initialize"
+          destroy-method="destroy"
+          class="com.hundsun.fcloud.tools.stockctrl.service.jdbc.JdbcBasedStockService">
+        <property name="timerDelay" value="${timer.delay}"/>
+        <property name="timerPeriod" value="${timer.period}"/>
+        <property name="timeoutPay" value="${timeout.pay}"/>
+        <property name="queryRunner" ref="queryRunner"/>
+    </bean>
+
+    <bean id="queryRunner" class="org.apache.commons.dbutils.QueryRunner">
+        <argument index="0" ref="dataSource"/>
+        <argument index="1" value="true"/>
+    </bean>
+
+    <reference id="dataSource" interface="javax.sql.DataSource"/>
+
+
+</blueprint>

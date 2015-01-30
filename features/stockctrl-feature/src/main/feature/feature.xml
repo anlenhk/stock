@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<features name="fcloud-${fcloud.version}"
+          xmlns="http://karaf.apache.org/xmlns/features/v1.2.1"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://karaf.apache.org/xmlns/features/v1.2.1 http://karaf.apache.org/xmlns/features/v1.2.1">
+
+    <repository>mvn:com.hundsun.fcloud.features/servlet-feature/${fcloud.version}/xml/features</repository>
+
+    <feature name="stockctrl-feature" description="Stock Control Feature" version="${project.version}">
+        <feature>servlet-feature</feature>
+
+        <bundle>mvn:commons-dbutils/commons-dbutils/1.6</bundle>
+        <bundle>mvn:com.hundsun.fcloud.tools/stockctrl/${project.version}</bundle>
+    </feature>
+
+</features>
