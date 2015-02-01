@@ -247,6 +247,10 @@ public abstract class AbstractStockService implements StockService {
 
         @Override
         public void run() {
+
+            Date currentDate = new Date();
+            List<StockCtrl> unlockList = null;
+
             //
             for(StockLimitation stockLimitation : stockLimitationMap.values()) {
                 //
@@ -259,23 +263,26 @@ public abstract class AbstractStockService implements StockService {
                     }
                 }
                 //
+                unlockList = new ArrayList<StockCtrl>();
                 Map<String, StockCtrl> stockCtrlMap = stockLimitation.getStockCtrlMap();
                 for(Iterator<Map.Entry<String, StockCtrl>> iter=stockCtrlMap.entrySet().iterator(); iter.hasNext();) {
                     //
                     Map.Entry<String, StockCtrl> entry = iter.next();
                     StockCtrl stockCtrl = entry.getValue();
                     //
-                    Date currentDate = new Date();
+                    currentDate = new Date();
                     Calendar calendar = Calendar.getInstance();
                     calendar.setTime(stockCtrl.getRequestDate());
-                    calendar.set(Calendar.MINUTE, timeoutPay);
+                    calendar.set(Calendar.MINUTE, calendar.get(Calendar.MINUTE) + timeoutPay);
                     //
-                    if(calendar.before(currentDate)) {
-                        //
-                        iter.remove();
-                        //
-                        unlock(entry.getValue());
+                    if(calendar.getTime().before(currentDate)) {
+                        unlockList.add(stockCtrl);
                     }
+                }
+
+                for (StockCtrl stockCtrl : unlockList) {
+                    logger.info("支付时间超时, 解库, 申请编号: " + stockCtrl.getRequestNo());
+                    unlock(stockCtrl);
                 }
             }
         }
