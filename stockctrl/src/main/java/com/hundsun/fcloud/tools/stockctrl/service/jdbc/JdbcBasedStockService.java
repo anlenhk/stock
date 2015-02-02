@@ -153,6 +153,45 @@ public class JdbcBasedStockService extends AbstractStockService {
         }
     }
 
+    @Override
+    protected void afterSuccessDecrease(StockLimitation stockLimitation, StockCtrl stockCtrl) {
+        Connection connection = null;
+        try {
+            connection = queryRunner.getDataSource().getConnection();
+            //
+            updateStockCtrl(connection, stockCtrl);
+            //
+        } catch (SQLException e) {
+            logger.error(e.getMessage(), e);
+        } finally {
+            if(connection!=null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    logger.error(e.getMessage(), e);
+                }
+            }
+        }
+    }
+
+    private static final String UPDATE_STOCK_CTRL_SQL = "update STOCK_CTRL_LIST t set t.balance = ?, t.trade_acco = ?, " +
+            "t.stock_code = ?, t.biz_code = ?, t.request_date = ?, t.state = ? " +
+            " where t.request_no = ?";
+    private void updateStockCtrl(Connection connection, StockCtrl stockCtrl) throws SQLException {
+        Object[] params = new Object[] {
+                stockCtrl.getBalance(),
+                stockCtrl.getTradeAcco(),
+                stockCtrl.getStockCode(),
+                stockCtrl.getBizCode(),
+                stockCtrl.getRequestDate(),
+                stockCtrl.getState(),
+                stockCtrl.getRequestNo()
+        };
+
+        queryRunner.update(connection, UPDATE_STOCK_CTRL_SQL, params);
+    }
+
+
     private static final String INSERT_STOCK_CTRL_SQL = "insert into STOCK_CTRL_LIST " +
             "(REQUEST_NO, BALANCE, TRADE_ACCO, STOCK_CODE, BIZ_CODE, REQUEST_DATE) values (?, ?, ?, ?, ?, ?)";
     private void insertStockCtrl(Connection connection, StockCtrl stockCtrl) throws SQLException {
@@ -264,6 +303,7 @@ public class JdbcBasedStockService extends AbstractStockService {
             String tradeAcco = (String) map.get("TRADE_ACCO");
             String stockCode = (String) map.get("STOCK_CODE");
             String bizCode = (String) map.get("BIZ_CODE");
+            int state = Integer.valueOf(String.valueOf(map.get("state")));
             TIMESTAMP requestDate = (TIMESTAMP) map.get("REQUEST_DATE");
             //
             StockCtrl stockCtrl = new StockCtrl();
@@ -273,6 +313,7 @@ public class JdbcBasedStockService extends AbstractStockService {
             stockCtrl.setStockCode(stockCode);
             stockCtrl.setBizCode(bizCode);
             stockCtrl.setRequestDate(requestDate.timestampValue());
+            stockCtrl.setState(state);
             //
             stockCtrlList.add(stockCtrl);
         }

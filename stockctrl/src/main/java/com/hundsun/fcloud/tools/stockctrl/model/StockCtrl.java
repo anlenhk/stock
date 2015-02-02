@@ -21,6 +21,8 @@ public class StockCtrl extends GenericModel {
 
     private Timestamp requestDate;
 
+    private int state;
+
     public String getRequestNo() {
         return requestNo;
     }
@@ -79,5 +81,13 @@ public class StockCtrl extends GenericModel {
 
     public void setRequestDate(Timestamp requestDate) {
         this.requestDate = requestDate;
+    }
+
+    public int getState() {
+        return state;
+    }
+
+    public void setState(int state) {
+        this.state = state;
     }
 }

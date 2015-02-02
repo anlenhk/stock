@@ -3,6 +3,7 @@ package com.hundsun.fcloud.tools.stockctrl.service;
 import com.hundsun.fcloud.tools.stockctrl.model.StockCtrl;
 import com.hundsun.fcloud.tools.stockctrl.model.StockLimitation;
 import com.hundsun.fcloud.tools.stockctrl.model.StockQuery;
+import com.hundsun.fcloud.tools.stockctrl.model.StockState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -201,13 +202,18 @@ public abstract class AbstractStockService implements StockService {
         //
         Long currentAmount = stockAmount.get();
         Long limitAmount = stockLimitation.getLimitAmount();
+
+        cachedStockCtrl.setState(StockState.PAID.getValue());
+
         //
         afterSuccessDecrease(stockLimitation, cachedStockCtrl);
         //
-        logger.info("去除库存 %d，当前库存余量", stockCtrl.getBalance(),limitAmount-currentAmount);
+        logger.info("去除库存 {}，当前库存余量 {} ", stockCtrl.getBalance(),limitAmount-currentAmount);
     }
 
-    protected void afterSuccessDecrease(StockLimitation stockLimitation, StockCtrl cachedStockCtrl){}
+    protected void afterSuccessDecrease(StockLimitation stockLimitation, StockCtrl cachedStockCtrl){
+
+    }
 
     @Override
     public StockQuery query(StockQuery stockQuery) {
@@ -275,6 +281,11 @@ public abstract class AbstractStockService implements StockService {
                     calendar.setTime(stockCtrl.getRequestDate());
                     calendar.set(Calendar.MINUTE, calendar.get(Calendar.MINUTE) + timeoutPay);
                     //
+
+                    if (stockCtrl.getState() == StockState.PAID.getValue()) {
+                        continue;
+                    }
+
                     if(calendar.getTime().before(currentDate)) {
                         unlockList.add(stockCtrl);
                     }
