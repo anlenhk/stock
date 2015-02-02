@@ -80,7 +80,8 @@ public abstract class AbstractStockService implements StockService {
         //
         if (!stockInvestors.containsKey(stockCtrl.getTradeAcco())
                 && stockInvestors.size() + 1 > limitInvestors) {
-            throw new StockCtrlException("");
+            logger.error("购买人数{}, 上限人数{}", stockInvestors.size() + 1, limitInvestors);
+            throw new StockCtrlException("购买人数超上限");
         }
         //
         Long oldAmount = stockAmount.get();
