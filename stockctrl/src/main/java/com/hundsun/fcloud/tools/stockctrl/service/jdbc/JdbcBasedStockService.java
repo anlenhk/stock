@@ -2,7 +2,9 @@ package com.hundsun.fcloud.tools.stockctrl.service.jdbc;
 
 import com.hundsun.fcloud.tools.stockctrl.model.StockCtrl;
 import com.hundsun.fcloud.tools.stockctrl.model.StockLimitation;
+import com.hundsun.fcloud.tools.stockctrl.model.StockState;
 import com.hundsun.fcloud.tools.stockctrl.service.AbstractStockService;
+import com.hundsun.fcloud.tools.stockctrl.service.StockCtrlException;
 import oracle.sql.TIMESTAMP;
 import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.MapHandler;
@@ -117,12 +119,13 @@ public class JdbcBasedStockService extends AbstractStockService {
             connection.setAutoCommit(false);
 
             int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, lockedStockCtrl).size();
+            StockLimitation limitation = this.loadStockLimitationByName(connection, stockLimitation.getLimitName());
             if (size == 0) {
-                StockLimitation limitation = this.loadStockLimitationByName(connection, stockLimitation.getLimitName());
                 limitation.setCurrentInvestors(limitation.getCurrentInvestors() + 1);
-                limitation.setCurrentAmount(limitation.getCurrentAmount() + lockedStockCtrl.getBalance());
-                this.updateStockLimitation(connection, limitation);
             }
+
+            limitation.setCurrentAmount(limitation.getCurrentAmount() + lockedStockCtrl.getBalance());
+            this.updateStockLimitation(connection, limitation);
             insertStockCtrl(connection, lockedStockCtrl);
 
             connection.commit();
@@ -142,13 +145,47 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     @Override
+    protected void beforeUnlock(StockCtrl stockCtrl) {
+        Connection connection = null;
+        try {
+            connection = queryRunner.getDataSource().getConnection();
+
+            if (loadStockCtrlByRequestNo(connection, stockCtrl.getRequestNo()) == null) {
+                logger.error("锁定的库存中不存在申请编号为 {} 的库存！", stockCtrl.getRequestNo());
+                throw new StockCtrlException(String.format("锁定的库存中不存在申请编号为 %s 的库存！", stockCtrl.getRequestNo()));
+            }
+
+        } catch (SQLException e) {
+            logger.error(e.getMessage(), e);
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    logger.error(e.getMessage(), e);
+                }
+            }
+        }
+    }
+
+    @Override
     protected void afterSuccessUnlock(StockLimitation stockLimitation, StockCtrl removedStockCtrl) {
         Connection connection = null;
         try {
             connection = queryRunner.getDataSource().getConnection();
-            //
+
+            connection.setAutoCommit(false);
             deleteStockCtrl(connection, removedStockCtrl);
+            //TODO: 验证是否需要减少总库存 & 总人数., removedStockCtrl 或许需要以数据库中的为准
+            int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, removedStockCtrl).size();
+            if (size == 0) {
+                StockLimitation limitation = this.loadStockLimitationByName(connection, stockLimitation.getLimitName());
+                limitation.setCurrentInvestors(limitation.getCurrentInvestors() - 1);
+                limitation.setCurrentAmount(limitation.getCurrentAmount() - removedStockCtrl.getBalance());
+                this.updateStockLimitation(connection, limitation);
+            }
             //
+            connection.commit();
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
@@ -299,19 +336,21 @@ public class JdbcBasedStockService extends AbstractStockService {
     private static final String UPDATE_STOCK_LIMITATION_SQL = "update stock_limitation t " +
             "  set t.limit_amount = ?, t.limit_investors = ?, t.current_amount = ?, t.current_investors =? " +
             "  where t.limit_name = ?";
+
     private void updateStockLimitation(Connection connection, StockLimitation stockLimitation) throws SQLException {
-        Object[] params = new Object[] {
-            stockLimitation.getLimitAmount(),
-            stockLimitation.getLimitInvestors(),
-            stockLimitation.getCurrentAmount(),
-            stockLimitation.getCurrentInvestors(),
-            stockLimitation.getLimitName()
+        Object[] params = new Object[]{
+                stockLimitation.getLimitAmount(),
+                stockLimitation.getLimitInvestors(),
+                stockLimitation.getCurrentAmount(),
+                stockLimitation.getCurrentInvestors(),
+                stockLimitation.getLimitName()
         };
         queryRunner.update(connection, UPDATE_STOCK_LIMITATION_SQL, params);
     }
 
     private static final String LOAD_STOCKS_CTRL_BY_TRADE_ACCO_AND_LIMIT_NAME = "select * from STOCK_CTRL_LIST " +
             "where TRADE_ACCO = ? and  STOCK_CODE=? and BIZ_CODE=? ";
+
     private List<StockCtrl> loadStocksCtrlByTradeAccoAndLimitName(Connection connection, StockCtrl lockedStockCtrl) throws SQLException {
         String[] params = new String[]{lockedStockCtrl.getTradeAcco(), lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode()};
 

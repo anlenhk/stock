@@ -7,6 +7,7 @@ import com.hundsun.fcloud.tools.stockctrl.model.StockState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetAddress;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -86,6 +87,8 @@ public abstract class AbstractStockService implements StockService {
 
     protected void afterSuccessLock(StockLimitation stockLimitation, StockCtrl lockedStockCtrl) {}
 
+    protected void beforeUnlock(StockCtrl stockCtrl) {};
+
     @Override
     public void unlock(StockCtrl stockCtrl) {
         //
@@ -93,31 +96,11 @@ public abstract class AbstractStockService implements StockService {
         if(stockLimitation==null) {
             return;
         }
-        //
-        StockCtrl cachedStockCtrl = stockLimitation.getStockCtrl(stockCtrl);
-        if(cachedStockCtrl==null) {
-            throw new StockCtrlException(String.format("锁定的库存中不存在申请编号为 %s 的库存！", stockCtrl.getRequestNo()));
-        }
-        //
-        AtomicLong stockAmount = stockLimitation.getStockAmount();
-        Map<String, AtomicInteger> stockInvestors = stockLimitation.getStockInvestors();
-        //
-        Long oldAmount = stockAmount.get();
-        Long newAmount = oldAmount - stockCtrl.getBalance();
-        //
-        if(stockAmount.compareAndSet(oldAmount, newAmount)) {
-            StockCtrl removedStockCtrl = stockLimitation.removeStockCtrl(cachedStockCtrl);
-            AtomicInteger currentTradeCount = stockInvestors.get(cachedStockCtrl.getTradeAcco());
-            if(currentTradeCount.decrementAndGet()<1) {
-                stockInvestors.remove(cachedStockCtrl.getTradeAcco());
-            }
-            //
-            afterSuccessUnlock(stockLimitation, removedStockCtrl);
-            //
-            logger.info("当前库存{}，库存限制{}！", newAmount, stockLimitation.getLimitAmount());
-        } else {
-            unlock(stockCtrl);
-        }
+
+        beforeUnlock(stockCtrl);
+
+        afterSuccessUnlock(stockLimitation, stockCtrl);
+
     }
 
     protected void afterSuccessUnlock(StockLimitation stockLimitation, StockCtrl removedStockCtrl) {}
@@ -179,6 +162,8 @@ public abstract class AbstractStockService implements StockService {
         //
         AtomicLong stockAmount = stockLimitation.getStockAmount();
         //
+        /*InetAddress.getLocalHost().getHostAddress()*/
+
         Long currentAmount = stockAmount.get();
         Long limitAmount = stockLimitation.getLimitAmount();
 
