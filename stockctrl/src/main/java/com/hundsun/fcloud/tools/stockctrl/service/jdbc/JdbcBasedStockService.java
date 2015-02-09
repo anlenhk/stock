@@ -388,6 +388,33 @@ public class JdbcBasedStockService extends AbstractStockService {
         return stockCtrl;
     }
 
+    private static final String LOAD_ALL_STOCK_CTRLS = "select * from STOCK_CTRL_LIST";
+    @Override
+    protected List<StockCtrl> loadAllStockCtrls() {
+        List<StockCtrl> results = new ArrayList<StockCtrl>();
+
+        Connection connection = null;
+        try {
+            connection = queryRunner.getDataSource().getConnection();
+            List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_ALL_STOCK_CTRLS, new MapListHandler());
+            for (Map<String, Object> map : mapList) {
+                results.add(this.mapToStockCtrl(map));
+            }
+            return results;
+        } catch (SQLException e) {
+            logger.error(e.getMessage(), e);
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    logger.error(e.getMessage(), e);
+                }
+            }
+        }
+        return results;
+    }
+
     @Override
     protected StockCtrl loadStockCtrlByRequstNo(String requestNo) {
         Connection connection = null;

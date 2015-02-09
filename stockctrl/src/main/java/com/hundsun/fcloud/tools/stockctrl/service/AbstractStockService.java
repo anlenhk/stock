@@ -177,52 +177,38 @@ public abstract class AbstractStockService implements StockService {
         return String.format("%s.%s", stockQuery.getStockCode(), stockQuery.getBizCode());
     }
 
+    protected abstract List<StockCtrl> loadAllStockCtrls();
+
     private class Cleaner extends TimerTask {
+        /**
+         *  每 1 分钟查询次数据库，判断下数据库中最后一次更新时间距离当前时间， 若超过 3 分钟， 则自己替换上去.
+         */
 
         @Override
         public void run() {
+            List<StockCtrl> stockCtrls = loadAllStockCtrls();
 
             Date currentDate = new Date();
-            List<StockCtrl> unlockList = null;
-
+            List<StockCtrl> unlockList = new ArrayList<StockCtrl>();
             //
-            for(StockLimitation stockLimitation : stockLimitationMap.values()) {
+            for(StockCtrl stockCtrl : stockCtrls) {
+                currentDate = new Date();
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTime(stockCtrl.getRequestDate());
+                calendar.set(Calendar.MINUTE, calendar.get(Calendar.MINUTE) + timeoutPay);
                 //
-                Map<String, AtomicInteger> stockInvestors = stockLimitation.getStockInvestors();
-                for(Iterator<Map.Entry<String, AtomicInteger>> iter=stockInvestors.entrySet().iterator(); iter.hasNext();) {
-                    //
-                    Map.Entry<String, AtomicInteger> entry = iter.next();
-                    if(entry.getValue().intValue()<1) {
-                        iter.remove();
-                    }
-                }
-                //
-                unlockList = new ArrayList<StockCtrl>();
-                Map<String, StockCtrl> stockCtrlMap = stockLimitation.getStockCtrlMap();
-                for(Iterator<Map.Entry<String, StockCtrl>> iter=stockCtrlMap.entrySet().iterator(); iter.hasNext();) {
-                    //
-                    Map.Entry<String, StockCtrl> entry = iter.next();
-                    StockCtrl stockCtrl = entry.getValue();
-                    //
-                    currentDate = new Date();
-                    Calendar calendar = Calendar.getInstance();
-                    calendar.setTime(stockCtrl.getRequestDate());
-                    calendar.set(Calendar.MINUTE, calendar.get(Calendar.MINUTE) + timeoutPay);
-                    //
-
-                    if (stockCtrl.getState() == StockState.PAID.getValue()) {
-                        continue;
-                    }
-
-                    if(calendar.getTime().before(currentDate)) {
-                        unlockList.add(stockCtrl);
-                    }
+                if (stockCtrl.getState() == StockState.PAID.getValue()) {
+                    continue;
                 }
 
-                for (StockCtrl stockCtrl : unlockList) {
-                    logger.info("支付时间超时, 解库, 申请编号: " + stockCtrl.getRequestNo());
-                    unlock(stockCtrl);
+                if(calendar.getTime().before(currentDate)) {
+                    unlockList.add(stockCtrl);
                 }
+            }
+
+            for (StockCtrl stockCtrl : unlockList) {
+                logger.info("支付时间超时, 解库, 申请编号: " + stockCtrl.getRequestNo());
+                unlock(stockCtrl);
             }
         }
     }
