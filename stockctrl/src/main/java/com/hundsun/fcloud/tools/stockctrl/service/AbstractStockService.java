@@ -105,6 +105,8 @@ public abstract class AbstractStockService implements StockService {
 
     protected void afterSuccessUnlock(StockLimitation stockLimitation, StockCtrl removedStockCtrl) {}
 
+    protected void beforeIncrease(StockCtrl stockCtrl) {};
+
     @Override
     public void increase(StockCtrl stockCtrl) {
         //
@@ -112,37 +114,13 @@ public abstract class AbstractStockService implements StockService {
         if(stockLimitation==null) {
             return;
         }
-        //
-        StockCtrl cachedStockCtrl = stockLimitation.getStockCtrl(stockCtrl);
-        if(cachedStockCtrl==null) {
-            throw new StockCtrlException(String.format("锁定的库存中不存在申请编号为 %s 的库存！", stockCtrl.getRequestNo()));
-        }
-        //
-        AtomicLong stockAmount = stockLimitation.getStockAmount();
-        Map<String, AtomicInteger> stockInvestors = stockLimitation.getStockInvestors();
-        //
-        Long limitAmount = stockLimitation.getLimitAmount();
-        //
-        Long oldAmount = stockAmount.get();
-        Long newAmount = oldAmount - stockCtrl.getBalance();
-        //
-        if(newAmount <0) {
-            throw new StockCtrlException("增加库存余量异常！");
-        }
-        //
-        if(stockAmount.compareAndSet(oldAmount, newAmount)) {
-            //
-            StockCtrl removedStockCtrl = stockLimitation.removeStockCtrl(stockCtrl);
-            AtomicInteger currentTradeCount = stockInvestors.get(cachedStockCtrl.getTradeAcco());
-            if(currentTradeCount.decrementAndGet()<1) {
-                stockInvestors.remove(cachedStockCtrl.getTradeAcco());
-            }
-            afterSuccessIncrease(stockLimitation, removedStockCtrl);
-            //
-            logger.info("当前库存{}，库存限制{}！", newAmount, limitAmount);
-        } else {
-            increase(stockCtrl);
-        }
+
+        this.beforeIncrease(stockCtrl);
+
+        afterSuccessIncrease(stockLimitation, stockCtrl);
+
+        logger.info("增加库存成功, requestNo: {}, banlance: {}", stockCtrl.getRequestNo(), stockCtrl.getBalance());
+
     }
 
     protected void afterSuccessIncrease(StockLimitation stockLimitation, StockCtrl removedStockCtrl){}

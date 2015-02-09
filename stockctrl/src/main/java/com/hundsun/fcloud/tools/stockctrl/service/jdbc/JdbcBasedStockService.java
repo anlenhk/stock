@@ -200,25 +200,13 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     @Override
+    protected void beforeIncrease(StockCtrl stockCtrl) {
+        beforeUnlock(stockCtrl);
+    }
+
+    @Override
     protected void afterSuccessIncrease(StockLimitation stockLimitation, StockCtrl removedStockCtrl) {
-        //
-        Connection connection = null;
-        try {
-            connection = queryRunner.getDataSource().getConnection();
-            //
-            deleteStockCtrl(connection, removedStockCtrl);
-            //
-        } catch (SQLException e) {
-            logger.error(e.getMessage(), e);
-        } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
-        }
+        afterSuccessUnlock(stockLimitation, removedStockCtrl);
     }
 
     @Override
