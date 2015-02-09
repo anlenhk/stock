@@ -25,6 +25,8 @@ public abstract class AbstractStockService implements StockService {
 
     private int timeoutPay; // MINUTE
 
+    private int limitCountPer = 1;  //单人购买限制次数
+
     private Timer cleanTimer;
 
     private Map<String, StockLimitation> stockLimitationMap = new HashMap<String, StockLimitation>();
@@ -39,6 +41,10 @@ public abstract class AbstractStockService implements StockService {
 
     public void setTimeoutPay(int timeoutPay) {
         this.timeoutPay = timeoutPay;
+    }
+
+    public void setLimitCountPer(int limitCountPer) {
+        this.limitCountPer = limitCountPer;
     }
 
     public void initialize() {
@@ -61,11 +67,11 @@ public abstract class AbstractStockService implements StockService {
 
     protected abstract List<StockLimitation> loadStockLimitations();
 
-    protected abstract void beforeLock(StockCtrl lockedStockCtrl);
+    protected abstract void beforeLock(StockCtrl lockedStockCtrl, int limitCountPer);
 
     @Override
     public void lock(StockCtrl stockCtrl) {
-        beforeLock(stockCtrl);
+        beforeLock(stockCtrl, limitCountPer);
         //
         StockLimitation stockLimitation = getStockLimitation(getKeyWithStockCtrl(stockCtrl));
         if(stockLimitation==null) {

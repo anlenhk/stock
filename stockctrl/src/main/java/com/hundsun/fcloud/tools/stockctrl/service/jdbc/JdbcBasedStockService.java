@@ -12,6 +12,7 @@ import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -64,17 +65,22 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     @Override
-    protected void beforeLock(StockCtrl lockedStockCtrl) {
+    protected void beforeLock(StockCtrl lockedStockCtrl, int limitCountPer) {
         Connection connection = null;
         try {
             connection = queryRunner.getDataSource().getConnection();
             //
-            lockedStockCtrl = loadStockCtrlByRequestNo(connection, lockedStockCtrl.getRequestNo());
-            if (lockedStockCtrl != null) {
+            if (loadStockCtrlByRequestNo(connection, lockedStockCtrl.getRequestNo()) != null) {
                 logger.error("申请编号重复: " + lockedStockCtrl.getRequestNo());
                 throw new RuntimeException("申请编号重复: " + lockedStockCtrl.getRequestNo());
             }
-            //
+
+            int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, lockedStockCtrl).size();
+            if (size >=  limitCountPer) {
+                logger.error("交易账号为 {} , 对 {}.{} 的申请次数已经达到上限 !", lockedStockCtrl.getTradeAcco(),lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode());
+                throw new RuntimeException("交易申请次数达上限");
+            }
+
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
@@ -263,26 +269,27 @@ public class JdbcBasedStockService extends AbstractStockService {
 
     }
 
+    private static final String LOAD_STOCKS_CTRL_BY_TRADE_ACCO_AND_LIMIT_NAME = "select * from STOCK_CTRL_LIST " +
+            "where TRADE_ACCO = ? and  STOCK_CODE=? and BIZ_CODE=? ";
+    private List<StockCtrl> loadStocksCtrlByTradeAccoAndLimitName(Connection connection, StockCtrl lockedStockCtrl) throws SQLException{
+        String[] params = new String[] {lockedStockCtrl.getTradeAcco(), lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode()};
+
+        List<StockCtrl> stockCtrlList = new ArrayList<StockCtrl>();
+        List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCKS_CTRL_BY_TRADE_ACCO_AND_LIMIT_NAME, new MapListHandler(), params);
+        for(Map<String, Object> map : mapList) {
+            stockCtrlList.add(this.mapToStockCtrl(map));
+        }
+
+        return stockCtrlList;
+    }
+
     private static final String LOAD_STOCK_CTRL_BY_REQUEST_NO = "select * from STOCK_CTRL_LIST " +
             "where REQUEST_NO = ?";
     private StockCtrl loadStockCtrlByRequestNo(Connection connection, String requestNo) throws SQLException {
         StockCtrl stockCtrl = null;
         List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_CTRL_BY_REQUEST_NO, new MapListHandler(), requestNo);
         for(Map<String, Object> map : mapList) {
-            //
-            BigDecimal balance = (BigDecimal) map.get("BALANCE");
-            String tradeAcco = (String) map.get("TRADE_ACCO");
-            String stockCode = (String) map.get("STOCK_CODE");
-            String bizCode = (String) map.get("BIZ_CODE");
-            TIMESTAMP requestDate = (TIMESTAMP) map.get("REQUEST_DATE");
-            //
-            stockCtrl = new StockCtrl();
-            stockCtrl.setRequestNo(requestNo);
-            stockCtrl.setBalance(balance.longValue());
-            stockCtrl.setTradeAcco(tradeAcco);
-            stockCtrl.setStockCode(stockCode);
-            stockCtrl.setBizCode(bizCode);
-            stockCtrl.setRequestDate(requestDate.timestampValue());
+            stockCtrl = this.mapToStockCtrl(map);
         }
 
         return stockCtrl;
@@ -297,28 +304,31 @@ public class JdbcBasedStockService extends AbstractStockService {
         List<StockCtrl> stockCtrlList = new ArrayList<StockCtrl>();
         List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_CTRLS_BY_LIMIT_NAME, new MapListHandler(), params);
         for(Map<String, Object> map : mapList) {
-            //
-            String requestNo = (String) map.get("REQUEST_NO");
-            BigDecimal balance = (BigDecimal) map.get("BALANCE");
-            String tradeAcco = (String) map.get("TRADE_ACCO");
-            String stockCode = (String) map.get("STOCK_CODE");
-            String bizCode = (String) map.get("BIZ_CODE");
-            int state = Integer.valueOf(String.valueOf(map.get("state")));
-            TIMESTAMP requestDate = (TIMESTAMP) map.get("REQUEST_DATE");
-            //
-            StockCtrl stockCtrl = new StockCtrl();
-            stockCtrl.setRequestNo(requestNo);
-            stockCtrl.setBalance(balance.longValue());
-            stockCtrl.setTradeAcco(tradeAcco);
-            stockCtrl.setStockCode(stockCode);
-            stockCtrl.setBizCode(bizCode);
-            stockCtrl.setRequestDate(requestDate.timestampValue());
-            stockCtrl.setState(state);
-            //
-            stockCtrlList.add(stockCtrl);
+            stockCtrlList.add(this.mapToStockCtrl(map));
         }
         //
         return stockCtrlList;
+    }
+
+    private StockCtrl mapToStockCtrl(Map<String, Object> map) throws SQLException {
+        String requestNo = (String) map.get("REQUEST_NO");
+        BigDecimal balance = (BigDecimal) map.get("BALANCE");
+        String tradeAcco = (String) map.get("TRADE_ACCO");
+        String stockCode = (String) map.get("STOCK_CODE");
+        String bizCode = (String) map.get("BIZ_CODE");
+        int state = Integer.valueOf(String.valueOf(map.get("state")));
+        TIMESTAMP requestDate = (TIMESTAMP) map.get("REQUEST_DATE");
+        //
+        StockCtrl stockCtrl = new StockCtrl();
+        stockCtrl.setRequestNo(requestNo);
+        stockCtrl.setBalance(balance.longValue());
+        stockCtrl.setTradeAcco(tradeAcco);
+        stockCtrl.setStockCode(stockCode);
+        stockCtrl.setBizCode(bizCode);
+        stockCtrl.setRequestDate(requestDate.timestampValue());
+        stockCtrl.setState(state);
+
+        return stockCtrl;
     }
 
 }
