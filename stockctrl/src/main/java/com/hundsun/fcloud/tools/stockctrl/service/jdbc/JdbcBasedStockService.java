@@ -78,9 +78,23 @@ public class JdbcBasedStockService extends AbstractStockService {
             int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, lockedStockCtrl).size();
             if (size >=  limitCountPer) {
                 logger.error("交易账号为 {} , 对 {}.{} 的申请次数已经达到上限 !", lockedStockCtrl.getTradeAcco(),lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode());
-                throw new RuntimeException("交易申请次数达上限");
+                throw new RuntimeException("单个账号交易申请次数达上限");
             }
 
+            //TODO: 校验总人数 & 库存量
+            StockLimitation limitation = this.loadStockLimitationByName(connection, lockedStockCtrl.getStockCode() + "." + lockedStockCtrl.getBizCode());
+            if (limitation.getLimitAmount() < limitation.getCurrentAmount() + lockedStockCtrl.getBalance()) {
+                logger.error("库存余量不足 {} ",limitation.getLimitAmount() - limitation.getCurrentAmount());
+                throw new RuntimeException("库存余量不足.");
+            }
+
+            if (limitation.getLimitInvestors() <= limitation.getCurrentInvestors()) {
+                logger.error("购买人数超上限");
+                throw new RuntimeException("购买人数超上限.");
+            } else if (limitation.getLimitInvestors() == limitation.getCurrentInvestors() && size == 0) {
+                logger.error("购买人数超上限");
+                throw new RuntimeException("购买人数超上限.");
+            }
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
@@ -102,9 +116,12 @@ public class JdbcBasedStockService extends AbstractStockService {
             connection = queryRunner.getDataSource().getConnection();
             //
             insertStockCtrl(connection, lockedStockCtrl);
+
+            //TODO ; 更新该产品的购买人数 & 总金额
             //
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
+            throw new RuntimeException(e);
         } finally {
             if(connection!=null) {
                 try {
@@ -247,19 +264,22 @@ public class JdbcBasedStockService extends AbstractStockService {
         List<StockLimitation> stockLimitationList = new ArrayList<StockLimitation>();
         List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_LIMITATION_SQL, new MapListHandler());
         for(Map<String, Object> map : mapList) {
-            String limitName = (String) map.get("LIMIT_NAME");
-            BigDecimal limitAmount = (BigDecimal) map.get("LIMIT_AMOUNT");
-            BigDecimal limitInvestors = (BigDecimal) map.get("LIMIT_INVESTORS");
-            //
-            StockLimitation stockLimitation = new StockLimitation();
-            stockLimitation.setLimitName(limitName);
-            stockLimitation.setLimitInvestors(limitInvestors.longValue());
-            stockLimitation.setLimitAmount(limitAmount.longValue());
-            //
-            stockLimitationList.add(stockLimitation);
+
+            stockLimitationList.add(this.mapToStockLimitation(map));
         }
         //
         return stockLimitationList;
+    }
+
+
+    private static final String LOAD_STOCK_LIMITATION_BY_NAME = "select * from STOCK_LIMITATION t " +
+            "where t.limit_name = ?";
+    private StockLimitation loadStockLimitationByName(Connection connection, String limitName) throws SQLException {
+        List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_LIMITATION_SQL, new MapListHandler());
+        for(Map<String, Object> map : mapList) {
+            return this.mapToStockLimitation(map);
+        }
+        return null;
     }
 
     private static final String UPDATE_STOCK_LIMITATION_SQL = "update STOCK_LIMITATION " +
@@ -310,6 +330,8 @@ public class JdbcBasedStockService extends AbstractStockService {
         return stockCtrlList;
     }
 
+
+
     private StockCtrl mapToStockCtrl(Map<String, Object> map) throws SQLException {
         String requestNo = (String) map.get("REQUEST_NO");
         BigDecimal balance = (BigDecimal) map.get("BALANCE");
@@ -329,6 +351,24 @@ public class JdbcBasedStockService extends AbstractStockService {
         stockCtrl.setState(state);
 
         return stockCtrl;
+    }
+
+    private StockLimitation mapToStockLimitation(Map<String, Object> map) {
+        String limitName = (String) map.get("LIMIT_NAME");
+        BigDecimal limitAmount = (BigDecimal) map.get("LIMIT_AMOUNT");
+        BigDecimal limitInvestors = (BigDecimal) map.get("LIMIT_INVESTORS");
+        BigDecimal currentAmount = (BigDecimal) map.get("CURRENT_AMOUNT");
+        BigDecimal currentInvestors = (BigDecimal) map.get("CURRENT_INVESTORS");
+
+        //
+        StockLimitation stockLimitation = new StockLimitation();
+        stockLimitation.setLimitName(limitName);
+        stockLimitation.setLimitInvestors(limitInvestors.longValue());
+        stockLimitation.setLimitAmount(limitAmount.longValue());
+        stockLimitation.setCurrentAmount(currentAmount.longValue());
+        stockLimitation.setCurrentInvestors(currentInvestors.intValue());
+
+        return stockLimitation;
     }
 
 }

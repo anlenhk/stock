@@ -16,6 +16,10 @@ public class StockLimitation {
 
     private Long limitInvestors;
 
+    private Long currentAmount;
+
+    private int currentInvestors;
+
     private AtomicLong stockAmount = new AtomicLong();
 
     private Map<String, AtomicInteger> stockInvestors = new HashMap<String, AtomicInteger>() {
@@ -81,4 +85,19 @@ public class StockLimitation {
         return this.stockCtrlMap.remove(stockCtrl.getRequestNo());
     }
 
+    public Long getCurrentAmount() {
+        return currentAmount;
+    }
+
+    public void setCurrentAmount(Long currentAmount) {
+        this.currentAmount = currentAmount;
+    }
+
+    public int getCurrentInvestors() {
+        return currentInvestors;
+    }
+
+    public void setCurrentInvestors(int currentInvestors) {
+        this.currentInvestors = currentInvestors;
+    }
 }

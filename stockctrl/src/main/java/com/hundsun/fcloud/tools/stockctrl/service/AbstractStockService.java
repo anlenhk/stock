@@ -71,45 +71,15 @@ public abstract class AbstractStockService implements StockService {
 
     @Override
     public void lock(StockCtrl stockCtrl) {
-        beforeLock(stockCtrl, limitCountPer);
         //
         StockLimitation stockLimitation = getStockLimitation(getKeyWithStockCtrl(stockCtrl));
         if(stockLimitation==null) {
             return;
         }
-        //
-        AtomicLong stockAmount = stockLimitation.getStockAmount();
-        Map<String, AtomicInteger> stockInvestors = stockLimitation.getStockInvestors();
-        //
-        Long limitAmount = stockLimitation.getLimitAmount();
-        Long limitInvestors = stockLimitation.getLimitInvestors();
-        //
-        if (!stockInvestors.containsKey(stockCtrl.getTradeAcco())
-                && stockInvestors.size() + 1 > limitInvestors) {
-            logger.error("购买人数{}, 上限人数{}", stockInvestors.size() + 1, limitInvestors);
-            throw new StockCtrlException("购买人数超上限");
-        }
-        //
-        Long oldAmount = stockAmount.get();
-        Long newAmount = oldAmount + stockCtrl.getBalance();
-        if(newAmount <= limitAmount) {
-            if(stockAmount.compareAndSet(oldAmount, newAmount)) {
-                //
-                stockCtrl.setRequestDate(new Timestamp(System.currentTimeMillis()));
-                stockLimitation.putStockCtrl(stockCtrl);
-                AtomicInteger currentTradeCount = stockInvestors.get(stockCtrl.getTradeAcco());
-                currentTradeCount.incrementAndGet();
-                //
-                afterSuccessLock(stockLimitation, stockCtrl);
-                //
-                logger.info("当前库存{}，库存限制{}！", newAmount, limitAmount);
-            } else {
-                this.lock(stockCtrl);
-            }
-        } else {
-            throw new StockCtrlException(String.format("锁库存异常,当前库存%d,请求锁定%d，库存限制%d！",
-                    oldAmount, stockCtrl.getBalance(), limitAmount));
-        }
+
+        beforeLock(stockCtrl, limitCountPer);
+
+        afterSuccessLock(stockLimitation, stockCtrl);
     }
 
     protected void afterSuccessLock(StockLimitation stockLimitation, StockCtrl lockedStockCtrl) {}
