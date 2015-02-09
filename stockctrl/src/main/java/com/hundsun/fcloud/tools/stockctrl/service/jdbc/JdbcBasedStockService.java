@@ -319,9 +319,29 @@ public class JdbcBasedStockService extends AbstractStockService {
             "where t.limit_name = ?";
 
     private StockLimitation loadStockLimitationByName(Connection connection, String limitName) throws SQLException {
-        List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_LIMITATION_SQL, new MapListHandler());
+        List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_LIMITATION_BY_NAME, new MapListHandler(), limitName);
         for (Map<String, Object> map : mapList) {
             return this.mapToStockLimitation(map);
+        }
+        return null;
+    }
+
+    @Override
+    protected StockLimitation loadStockLimitationByLimitName(String limitName) {
+        Connection connection = null;
+        try {
+            connection = queryRunner.getDataSource().getConnection();
+            return this.loadStockLimitationByName(connection, limitName);
+        } catch (SQLException e) {
+            logger.error(e.getMessage(), e);
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    logger.error(e.getMessage(), e);
+                }
+            }
         }
         return null;
     }

@@ -154,28 +154,19 @@ public abstract class AbstractStockService implements StockService {
 
     @Override
     public StockQuery query(StockQuery stockQuery) {
-        //
-        StockLimitation stockLimitation = getStockLimitation(getKeyWithQueryCtrl(stockQuery));
-        if(stockLimitation==null) {
+        StockLimitation limitation = this.getStockLimitation(getKeyWithQueryCtrl(stockQuery));
+        if (null == limitation) {
             return stockQuery;
         }
-        //
-        AtomicLong stockAmount = stockLimitation.getStockAmount();
-        Long limitAmount = stockLimitation.getLimitAmount();
-        //
-        Long currentAmount = stockAmount.get();
-        Long remainAmount = limitAmount - currentAmount;
-        //
-        if(remainAmount<0) {
-            remainAmount = 0L;
-        }
-        //
-        stockQuery.setTotalBalance(limitAmount);
-        stockQuery.setRemainBalance(remainAmount);
-        stockQuery.setBalance(currentAmount);
-        //
+
+        stockQuery.setTotalBalance(limitation.getLimitAmount());
+        stockQuery.setRemainBalance(limitation.getLimitAmount() - limitation.getCurrentAmount());
+        stockQuery.setBalance(limitation.getCurrentAmount());
+
         return stockQuery;
     }
+
+    protected abstract StockLimitation loadStockLimitationByLimitName(String limitName);
 
 
     private String getKeyWithStockCtrl(StockCtrl stockCtrl) {
