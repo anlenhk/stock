@@ -79,6 +79,8 @@ public abstract class AbstractStockService implements StockService {
 
         beforeLock(stockCtrl, limitCountPer);
 
+        stockCtrl.setRequestDate(new Timestamp(System.currentTimeMillis()));
+
         afterSuccessLock(stockLimitation, stockCtrl);
     }
 

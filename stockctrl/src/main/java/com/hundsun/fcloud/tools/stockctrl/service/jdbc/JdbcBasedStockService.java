@@ -36,10 +36,10 @@ public class JdbcBasedStockService extends AbstractStockService {
             connection = queryRunner.getDataSource().getConnection();
             //
             List<StockLimitation> stockLimitationList = loadStockLimitations(connection);
-            for(StockLimitation stockLimitation : stockLimitationList) {
+            for (StockLimitation stockLimitation : stockLimitationList) {
                 //
                 List<StockCtrl> stockCtrls = loadStockCtrlsByLimitName(connection, stockLimitation.getLimitName());
-                for(StockCtrl stockCtrl : stockCtrls) {
+                for (StockCtrl stockCtrl : stockCtrls) {
                     stockLimitation.putStockCtrl(stockCtrl);
                     AtomicInteger number = stockLimitation.getStockInvestors().get(stockCtrl.getTradeAcco());
                     number.incrementAndGet();
@@ -52,7 +52,7 @@ public class JdbcBasedStockService extends AbstractStockService {
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
-            if(connection!=null) {
+            if (connection != null) {
                 try {
                     connection.close();
                 } catch (SQLException e) {
@@ -76,15 +76,15 @@ public class JdbcBasedStockService extends AbstractStockService {
             }
 
             int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, lockedStockCtrl).size();
-            if (size >=  limitCountPer) {
-                logger.error("交易账号为 {} , 对 {}.{} 的申请次数已经达到上限 !", lockedStockCtrl.getTradeAcco(),lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode());
+            if (size >= limitCountPer) {
+                logger.error("交易账号为 {} , 对 {}.{} 的申请次数已经达到上限 !", lockedStockCtrl.getTradeAcco(), lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode());
                 throw new RuntimeException("单个账号交易申请次数达上限");
             }
 
             //TODO: 校验总人数 & 库存量
             StockLimitation limitation = this.loadStockLimitationByName(connection, lockedStockCtrl.getStockCode() + "." + lockedStockCtrl.getBizCode());
             if (limitation.getLimitAmount() < limitation.getCurrentAmount() + lockedStockCtrl.getBalance()) {
-                logger.error("库存余量不足 {} ",limitation.getLimitAmount() - limitation.getCurrentAmount());
+                logger.error("库存余量不足 {} ", limitation.getLimitAmount() - limitation.getCurrentAmount());
                 throw new RuntimeException("库存余量不足.");
             }
 
@@ -98,7 +98,7 @@ public class JdbcBasedStockService extends AbstractStockService {
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
-            if(connection!=null) {
+            if (connection != null) {
                 try {
                     connection.close();
                 } catch (SQLException e) {
@@ -114,16 +114,24 @@ public class JdbcBasedStockService extends AbstractStockService {
         Connection connection = null;
         try {
             connection = queryRunner.getDataSource().getConnection();
-            //
+            connection.setAutoCommit(false);
+
+            int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, lockedStockCtrl).size();
+            if (size == 0) {
+                StockLimitation limitation = this.loadStockLimitationByName(connection, stockLimitation.getLimitName());
+                limitation.setCurrentInvestors(limitation.getCurrentInvestors() + 1);
+                limitation.setCurrentAmount(limitation.getCurrentAmount() + lockedStockCtrl.getBalance());
+                this.updateStockLimitation(connection, limitation);
+            }
             insertStockCtrl(connection, lockedStockCtrl);
 
-            //TODO ; 更新该产品的购买人数 & 总金额
+            connection.commit();
             //
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
         } finally {
-            if(connection!=null) {
+            if (connection != null) {
                 try {
                     connection.close();
                 } catch (SQLException e) {
@@ -144,7 +152,7 @@ public class JdbcBasedStockService extends AbstractStockService {
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
-            if(connection!=null) {
+            if (connection != null) {
                 try {
                     connection.close();
                 } catch (SQLException e) {
@@ -166,7 +174,7 @@ public class JdbcBasedStockService extends AbstractStockService {
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
-            if(connection!=null) {
+            if (connection != null) {
                 try {
                     connection.close();
                 } catch (SQLException e) {
@@ -187,7 +195,7 @@ public class JdbcBasedStockService extends AbstractStockService {
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
-            if(connection!=null) {
+            if (connection != null) {
                 try {
                     connection.close();
                 } catch (SQLException e) {
@@ -200,8 +208,9 @@ public class JdbcBasedStockService extends AbstractStockService {
     private static final String UPDATE_STOCK_CTRL_SQL = "update STOCK_CTRL_LIST t set t.balance = ?, t.trade_acco = ?, " +
             "t.stock_code = ?, t.biz_code = ?, t.request_date = ?, t.state = ? " +
             " where t.request_no = ?";
+
     private void updateStockCtrl(Connection connection, StockCtrl stockCtrl) throws SQLException {
-        Object[] params = new Object[] {
+        Object[] params = new Object[]{
                 stockCtrl.getBalance(),
                 stockCtrl.getTradeAcco(),
                 stockCtrl.getStockCode(),
@@ -217,9 +226,10 @@ public class JdbcBasedStockService extends AbstractStockService {
 
     private static final String INSERT_STOCK_CTRL_SQL = "insert into STOCK_CTRL_LIST " +
             "(REQUEST_NO, BALANCE, TRADE_ACCO, STOCK_CODE, BIZ_CODE, REQUEST_DATE) values (?, ?, ?, ?, ?, ?)";
+
     private void insertStockCtrl(Connection connection, StockCtrl stockCtrl) throws SQLException {
         //
-        Object[] params = new Object[] {
+        Object[] params = new Object[]{
                 stockCtrl.getRequestNo(),
                 stockCtrl.getBalance(),
                 stockCtrl.getTradeAcco(),
@@ -233,9 +243,10 @@ public class JdbcBasedStockService extends AbstractStockService {
 
     private static final String DELETE_STOCK_CTRL_SQL = "delete from STOCK_CTRL_LIST " +
             "where REQUEST_NO=? and BALANCE=? and TRADE_ACCO=? and STOCK_CODE=? and BIZ_CODE=?";
+
     private void deleteStockCtrl(Connection connection, StockCtrl stockCtrl) throws SQLException {
         //
-        Object[] params = new Object[] {
+        Object[] params = new Object[]{
                 stockCtrl.getRequestNo(),
                 stockCtrl.getBalance(),
                 stockCtrl.getTradeAcco(),
@@ -249,6 +260,7 @@ public class JdbcBasedStockService extends AbstractStockService {
 
     private static final String COUNT_STOCK_CTRL_BY_LIMIT_NAME = "select count(*) as COUNT from STOCK_CTRL_LIST " +
             "where STOCK_CODE=? and BIZ_CODE=?";
+
     private long countStockInvestorsByLimitName(Connection connection, String limitName) throws SQLException {
         //
         String[] params = limitName.split("\\.");
@@ -259,11 +271,12 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     private static final String LOAD_STOCK_LIMITATION_SQL = "select * from STOCK_LIMITATION";
+
     private List<StockLimitation> loadStockLimitations(Connection connection) throws SQLException {
         //
         List<StockLimitation> stockLimitationList = new ArrayList<StockLimitation>();
         List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_LIMITATION_SQL, new MapListHandler());
-        for(Map<String, Object> map : mapList) {
+        for (Map<String, Object> map : mapList) {
 
             stockLimitationList.add(this.mapToStockLimitation(map));
         }
@@ -274,29 +287,37 @@ public class JdbcBasedStockService extends AbstractStockService {
 
     private static final String LOAD_STOCK_LIMITATION_BY_NAME = "select * from STOCK_LIMITATION t " +
             "where t.limit_name = ?";
+
     private StockLimitation loadStockLimitationByName(Connection connection, String limitName) throws SQLException {
         List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_LIMITATION_SQL, new MapListHandler());
-        for(Map<String, Object> map : mapList) {
+        for (Map<String, Object> map : mapList) {
             return this.mapToStockLimitation(map);
         }
         return null;
     }
 
-    private static final String UPDATE_STOCK_LIMITATION_SQL = "update STOCK_LIMITATION " +
-            "set CURRENT_VALUE=? where LIMIT_NAME=? and LIMIT_TYPE=?";
-    private void updateStockLimitation(StockLimitation stockLimitation) {
-        //
-
+    private static final String UPDATE_STOCK_LIMITATION_SQL = "update stock_limitation t " +
+            "  set t.limit_amount = ?, t.limit_investors = ?, t.current_amount = ?, t.current_investors =? " +
+            "  where t.limit_name = ?";
+    private void updateStockLimitation(Connection connection, StockLimitation stockLimitation) throws SQLException {
+        Object[] params = new Object[] {
+            stockLimitation.getLimitAmount(),
+            stockLimitation.getLimitInvestors(),
+            stockLimitation.getCurrentAmount(),
+            stockLimitation.getCurrentInvestors(),
+            stockLimitation.getLimitName()
+        };
+        queryRunner.update(connection, UPDATE_STOCK_LIMITATION_SQL, params);
     }
 
     private static final String LOAD_STOCKS_CTRL_BY_TRADE_ACCO_AND_LIMIT_NAME = "select * from STOCK_CTRL_LIST " +
             "where TRADE_ACCO = ? and  STOCK_CODE=? and BIZ_CODE=? ";
-    private List<StockCtrl> loadStocksCtrlByTradeAccoAndLimitName(Connection connection, StockCtrl lockedStockCtrl) throws SQLException{
-        String[] params = new String[] {lockedStockCtrl.getTradeAcco(), lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode()};
+    private List<StockCtrl> loadStocksCtrlByTradeAccoAndLimitName(Connection connection, StockCtrl lockedStockCtrl) throws SQLException {
+        String[] params = new String[]{lockedStockCtrl.getTradeAcco(), lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode()};
 
         List<StockCtrl> stockCtrlList = new ArrayList<StockCtrl>();
         List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCKS_CTRL_BY_TRADE_ACCO_AND_LIMIT_NAME, new MapListHandler(), params);
-        for(Map<String, Object> map : mapList) {
+        for (Map<String, Object> map : mapList) {
             stockCtrlList.add(this.mapToStockCtrl(map));
         }
 
@@ -305,10 +326,11 @@ public class JdbcBasedStockService extends AbstractStockService {
 
     private static final String LOAD_STOCK_CTRL_BY_REQUEST_NO = "select * from STOCK_CTRL_LIST " +
             "where REQUEST_NO = ?";
+
     private StockCtrl loadStockCtrlByRequestNo(Connection connection, String requestNo) throws SQLException {
         StockCtrl stockCtrl = null;
         List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_CTRL_BY_REQUEST_NO, new MapListHandler(), requestNo);
-        for(Map<String, Object> map : mapList) {
+        for (Map<String, Object> map : mapList) {
             stockCtrl = this.mapToStockCtrl(map);
         }
 
@@ -317,19 +339,19 @@ public class JdbcBasedStockService extends AbstractStockService {
 
     private static final String LOAD_STOCK_CTRLS_BY_LIMIT_NAME = "select * from STOCK_CTRL_LIST " +
             "where STOCK_CODE=? and BIZ_CODE=?";
+
     private List<StockCtrl> loadStockCtrlsByLimitName(Connection connection, String limitName) throws SQLException {
         //
         String[] params = limitName.split("\\.");
         //
         List<StockCtrl> stockCtrlList = new ArrayList<StockCtrl>();
         List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_CTRLS_BY_LIMIT_NAME, new MapListHandler(), params);
-        for(Map<String, Object> map : mapList) {
+        for (Map<String, Object> map : mapList) {
             stockCtrlList.add(this.mapToStockCtrl(map));
         }
         //
         return stockCtrlList;
     }
-
 
 
     private StockCtrl mapToStockCtrl(Map<String, Object> map) throws SQLException {
