@@ -87,7 +87,7 @@ public abstract class AbstractStockService implements StockService {
 
     protected void afterSuccessLock(StockLimitation stockLimitation, StockCtrl lockedStockCtrl) {}
 
-    protected void beforeUnlock(StockCtrl stockCtrl) {};
+    protected void beforeUnlock(StockCtrl stockCtrl) {}
 
     @Override
     public void unlock(StockCtrl stockCtrl) {
@@ -105,7 +105,7 @@ public abstract class AbstractStockService implements StockService {
 
     protected void afterSuccessUnlock(StockLimitation stockLimitation, StockCtrl removedStockCtrl) {}
 
-    protected void beforeIncrease(StockCtrl stockCtrl) {};
+    protected void beforeIncrease(StockCtrl stockCtrl) {}
 
     @Override
     public void increase(StockCtrl stockCtrl) {
@@ -125,6 +125,8 @@ public abstract class AbstractStockService implements StockService {
 
     protected void afterSuccessIncrease(StockLimitation stockLimitation, StockCtrl removedStockCtrl){}
 
+    protected void beforeDecrease(StockCtrl stockCtrl) {}
+
     @Override
     public void decrease(StockCtrl stockCtrl) {
         //
@@ -132,30 +134,23 @@ public abstract class AbstractStockService implements StockService {
         if(stockLimitation==null) {
             return;
         }
-        //
-        StockCtrl cachedStockCtrl = stockLimitation.getStockCtrl(stockCtrl);
-        if(cachedStockCtrl==null) {
-            throw new StockCtrlException(String.format("锁定的库存中不存在申请编号为 %s 的库存！", stockCtrl.getRequestNo()));
-        }
-        //
-        AtomicLong stockAmount = stockLimitation.getStockAmount();
-        //
-        /*InetAddress.getLocalHost().getHostAddress()*/
 
-        Long currentAmount = stockAmount.get();
-        Long limitAmount = stockLimitation.getLimitAmount();
+        beforeDecrease(stockCtrl);
 
-        cachedStockCtrl.setState(StockState.PAID.getValue());
+        //TODO: 此处这么写主要是为了拿到所库存时的时间， 后期有待优化
+        stockCtrl = this.loadStockCtrlByRequstNo(stockCtrl.getRequestNo());
+
+        stockCtrl.setState(StockState.PAID.getValue());
 
         //
-        afterSuccessDecrease(stockLimitation, cachedStockCtrl);
+        afterSuccessDecrease(stockLimitation, stockCtrl);
         //
-        logger.info("去除库存 {}，当前库存余量 {} ", stockCtrl.getBalance(),limitAmount-currentAmount);
+        logger.info("去除库存 {} 成功，requestNo: {} ", stockCtrl.getBalance(), stockCtrl.getRequestNo());
     }
 
-    protected void afterSuccessDecrease(StockLimitation stockLimitation, StockCtrl cachedStockCtrl){
+    protected void afterSuccessDecrease(StockLimitation stockLimitation, StockCtrl cachedStockCtrl){}
 
-    }
+    protected abstract StockCtrl loadStockCtrlByRequstNo(String requestNo);
 
     @Override
     public StockQuery query(StockQuery stockQuery) {
@@ -244,5 +239,6 @@ public abstract class AbstractStockService implements StockService {
     protected StockLimitation getStockLimitation(String key) {
         return stockLimitationMap.get(key);
     }
+
 
 }

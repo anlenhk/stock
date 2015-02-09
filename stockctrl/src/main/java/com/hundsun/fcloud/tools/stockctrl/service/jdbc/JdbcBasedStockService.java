@@ -210,6 +210,11 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     @Override
+    protected void beforeDecrease(StockCtrl stockCtrl) {
+        beforeUnlock(stockCtrl);
+    }
+
+    @Override
     protected void afterSuccessDecrease(StockLimitation stockLimitation, StockCtrl stockCtrl) {
         Connection connection = null;
         try {
@@ -353,7 +358,6 @@ public class JdbcBasedStockService extends AbstractStockService {
 
     private static final String LOAD_STOCK_CTRL_BY_REQUEST_NO = "select * from STOCK_CTRL_LIST " +
             "where REQUEST_NO = ?";
-
     private StockCtrl loadStockCtrlByRequestNo(Connection connection, String requestNo) throws SQLException {
         StockCtrl stockCtrl = null;
         List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_CTRL_BY_REQUEST_NO, new MapListHandler(), requestNo);
@@ -362,6 +366,26 @@ public class JdbcBasedStockService extends AbstractStockService {
         }
 
         return stockCtrl;
+    }
+
+    @Override
+    protected StockCtrl loadStockCtrlByRequstNo(String requestNo) {
+        Connection connection = null;
+        try {
+            connection = queryRunner.getDataSource().getConnection();
+            return this.loadStockCtrlByRequestNo(connection, requestNo);
+        } catch (SQLException e) {
+            logger.error(e.getMessage(), e);
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    logger.error(e.getMessage(), e);
+                }
+            }
+        }
+        return null;
     }
 
     private static final String LOAD_STOCK_CTRLS_BY_LIMIT_NAME = "select * from STOCK_CTRL_LIST " +
