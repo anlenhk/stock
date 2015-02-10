@@ -78,7 +78,7 @@ public class JdbcBasedStockService extends AbstractStockService {
 
             int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, lockedStockCtrl).size();
             if (size >= limitCountPer) {
-                logger.error("交易账号为 {} , 对 {}.{} 的申请次数已经达到上限 !", lockedStockCtrl.getTradeAcco(), lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode());
+                logger.error("交易账号为 {} , 对 {}.{} 的申请次数已经达到上限 {}!", lockedStockCtrl.getTradeAcco(), lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode(), limitCountPer);
                 throw new RuntimeException("单个账号交易申请次数达上限");
             }
 

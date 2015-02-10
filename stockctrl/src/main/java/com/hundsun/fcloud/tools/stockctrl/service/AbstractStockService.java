@@ -27,6 +27,9 @@ public abstract class AbstractStockService implements StockService {
 
     private int limitCountPer = 1;  //单人购买限制次数
 
+    final Timer cleanTimer = new Timer("Cleaner");
+    final CleanTask cleanTask = new CleanTask();
+
     private Map<String, StockLimitation> stockLimitationMap = new HashMap<String, StockLimitation>();
 
     public void setTimerDelay(long timerDelay) {
@@ -52,26 +55,25 @@ public abstract class AbstractStockService implements StockService {
             this.stockLimitationMap.put(stockLimitation.getLimitName(), stockLimitation);
         }
         //
-        final Timer cleanTimer = new Timer("Cleaner");
-        final CleanTask cleanTask = new CleanTask();
+        /*final Timer cleanTimer = new Timer("Cleaner");
+        final CleanTask cleanTask = new CleanTask();*/
         cleanTimer.schedule(cleanTask, timerDelay, timerPeriod);
         //
         Runtime.getRuntime().addShutdownHook(new Thread(){
             @Override
             public void run() {
-                logger.info("销毁定时器...");
-                cleanTask.cancel();
-                if(cleanTimer!=null) {
-                    cleanTimer.purge();
-                    logger.info("定时器被成功销毁");
-                }
+                AbstractStockService.this.destroy();
             }
         });
     }
 
     public void destroy() {
-        //
-
+        logger.info("销毁定时器...");
+        cleanTask.cancel();
+        if(cleanTimer!=null) {
+            cleanTimer.purge();
+            logger.info("定时器被成功销毁");
+        }
     }
 
     protected abstract List<StockLimitation> loadStockLimitations();
