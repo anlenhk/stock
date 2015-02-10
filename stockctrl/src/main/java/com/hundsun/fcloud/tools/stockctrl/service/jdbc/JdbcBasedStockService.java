@@ -485,6 +485,7 @@ public class JdbcBasedStockService extends AbstractStockService {
                     cleaner.setLoginTime(new Timestamp(System.currentTimeMillis()));
                     this.updateStockCtrlCleaner(connection, cleaner);
                 }
+
                 return true;
             }
         } catch (SQLException e) {
@@ -506,7 +507,6 @@ public class JdbcBasedStockService extends AbstractStockService {
 
     protected void insertStockCtrlCleaner(Connection connection, StockCtrlCleaner cleaner) throws SQLException {
         Object[] params = new Object[]{cleaner.getId(), cleaner.getHost(), cleaner.getLoginTime()};
-        logger.info("params: " + params);
         queryRunner.update(connection, INSERT_STOCK_CTRL_CLEANER, params);
     }
 
