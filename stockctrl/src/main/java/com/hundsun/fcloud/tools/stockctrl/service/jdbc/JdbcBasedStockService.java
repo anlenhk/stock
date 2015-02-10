@@ -89,7 +89,7 @@ public class JdbcBasedStockService extends AbstractStockService {
                 throw new RuntimeException("库存余量不足.");
             }
 
-            if (limitation.getLimitInvestors() <= limitation.getCurrentInvestors()) {
+            if (limitation.getLimitInvestors() < limitation.getCurrentInvestors()) {
                 logger.error("购买人数超上限");
                 throw new RuntimeException("购买人数超上限.");
             } else if (limitation.getLimitInvestors() == limitation.getCurrentInvestors() && size == 0) {
@@ -488,7 +488,7 @@ public class JdbcBasedStockService extends AbstractStockService {
 
                 return true;
             }
-        } catch (SQLException e) {
+        } catch (Exception e) {
             logger.error(e.getMessage(), e);
         } finally {
             if (connection != null) {

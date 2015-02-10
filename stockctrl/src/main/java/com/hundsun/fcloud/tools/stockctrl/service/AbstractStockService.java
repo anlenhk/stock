@@ -8,12 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.Inet4Address;
-import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Timestamp;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Created by Gavin Hu on 2015/1/19.
@@ -30,16 +27,14 @@ public abstract class AbstractStockService implements StockService {
 
     private int limitCountPer = 1;  //单人购买限制次数
 
-    private Timer cleanTimer;
-
     private Map<String, StockLimitation> stockLimitationMap = new HashMap<String, StockLimitation>();
 
     public void setTimerDelay(long timerDelay) {
-        this.timerDelay = timerDelay;
+        this.timerDelay = timerDelay * 1000;
     }
 
     public void setTimerPeriod(long timerPeriod) {
-        this.timerPeriod = timerPeriod;
+        this.timerPeriod = timerPeriod * 1000;
     }
 
     public void setTimeoutPay(int timeoutPay) {
@@ -57,15 +52,26 @@ public abstract class AbstractStockService implements StockService {
             this.stockLimitationMap.put(stockLimitation.getLimitName(), stockLimitation);
         }
         //
-        this.cleanTimer = new Timer("Cleaner");
-        this.cleanTimer.schedule(new Cleaner(), timerDelay, timerPeriod);
+        final Timer cleanTimer = new Timer("Cleaner");
+        final CleanTask cleanTask = new CleanTask();
+        cleanTimer.schedule(cleanTask, timerDelay, timerPeriod);
+        //
+        Runtime.getRuntime().addShutdownHook(new Thread(){
+            @Override
+            public void run() {
+                logger.info("销毁定时器...");
+                cleanTask.cancel();
+                if(cleanTimer!=null) {
+                    cleanTimer.purge();
+                    logger.info("定时器被成功销毁");
+                }
+            }
+        });
     }
 
     public void destroy() {
         //
-        if(this.cleanTimer!=null) {
-            this.cleanTimer.purge();
-        }
+
     }
 
     protected abstract List<StockLimitation> loadStockLimitations();
@@ -183,7 +189,7 @@ public abstract class AbstractStockService implements StockService {
 
     protected abstract boolean isActiveStockStrlCleaner(String host, long timerPeriod);
 
-    private class Cleaner extends TimerTask {
+    private class CleanTask extends TimerTask {
         /**
          *  每 1 分钟查询次数据库，判断下数据库中最后一次更新时间距离当前时间， 若超过 3 分钟， 则自己替换上去.
          */
@@ -191,6 +197,7 @@ public abstract class AbstractStockService implements StockService {
         @Override
         public void run() {
             try {
+                logger.info("执行定时器.....");
                 String host = Inet4Address.getLocalHost().getHostAddress();
                 if (! isActiveStockStrlCleaner(host, timerPeriod * 3)) {
                     return;
