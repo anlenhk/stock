@@ -177,13 +177,14 @@ public class JdbcBasedStockService extends AbstractStockService {
             deleteStockCtrl(connection, removedStockCtrl);
             //TODO: 验证是否需要减少总库存 & 总人数., removedStockCtrl 或许需要以数据库中的为准
             int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, removedStockCtrl).size();
+
+            StockLimitation limitation = this.loadStockLimitationByName(connection, stockLimitation.getLimitName());
+            limitation.setCurrentAmount(limitation.getCurrentAmount() - removedStockCtrl.getBalance());
             if (size == 0) {
-                StockLimitation limitation = this.loadStockLimitationByName(connection, stockLimitation.getLimitName());
                 limitation.setCurrentInvestors(limitation.getCurrentInvestors() - 1);
-                limitation.setCurrentAmount(limitation.getCurrentAmount() - removedStockCtrl.getBalance());
-                this.updateStockLimitation(connection, limitation);
             }
             //
+            this.updateStockLimitation(connection, limitation);
             connection.commit();
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
@@ -377,6 +378,7 @@ public class JdbcBasedStockService extends AbstractStockService {
 
     private static final String LOAD_STOCK_CTRL_BY_REQUEST_NO = "select * from STOCK_CTRL_LIST " +
             "where REQUEST_NO = ?";
+
     private StockCtrl loadStockCtrlByRequestNo(Connection connection, String requestNo) throws SQLException {
         StockCtrl stockCtrl = null;
         List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STOCK_CTRL_BY_REQUEST_NO, new MapListHandler(), requestNo);
@@ -388,6 +390,7 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     private static final String LOAD_ALL_STOCK_CTRLS = "select * from STOCK_CTRL_LIST";
+
     @Override
     protected List<StockCtrl> loadAllStockCtrls() {
         List<StockCtrl> results = new ArrayList<StockCtrl>();
@@ -451,6 +454,7 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     private static final String ACTIVE_STOCK_STRL_CLEANER = "select * from STOCK_CTRL_ClEANER";
+
     @Override
     protected boolean isActiveStockStrlCleaner(String host, long timerPeriod) {
         StockCtrlCleaner cleaner = new StockCtrlCleaner();
@@ -466,7 +470,7 @@ public class JdbcBasedStockService extends AbstractStockService {
                 return true;
             }
 
-            for (Map<String , Object> map : mapList) {
+            for (Map<String, Object> map : mapList) {
                 Date currentDate = new Date();
 
                 cleaner.setHost(map.get("host").toString());
@@ -475,7 +479,7 @@ public class JdbcBasedStockService extends AbstractStockService {
 
                 Calendar calendar = Calendar.getInstance();
                 calendar.setTime(cleaner.getLoginTime());
-                calendar.set(Calendar.SECOND, calendar.get(Calendar.SECOND) + (int)timerPeriod);
+                calendar.set(Calendar.SECOND, calendar.get(Calendar.SECOND) + (int) timerPeriod);
                 if (host.equals(cleaner.getHost()) || calendar.getTime().before(currentDate)) {
                     cleaner.setHost(host);
                     cleaner.setLoginTime(new Timestamp(System.currentTimeMillis()));
@@ -499,15 +503,17 @@ public class JdbcBasedStockService extends AbstractStockService {
 
 
     protected static final String INSERT_STOCK_CTRL_CLEANER = "insert into STOCK_CTRL_ClEANER(id, host, LOGIN_TIME) values (?, ?, ?)";
+
     protected void insertStockCtrlCleaner(Connection connection, StockCtrlCleaner cleaner) throws SQLException {
-        Object[] params = new Object[] {cleaner.getId(), cleaner.getHost(), cleaner.getLoginTime()};
+        Object[] params = new Object[]{cleaner.getId(), cleaner.getHost(), cleaner.getLoginTime()};
         logger.info("params: " + params);
         queryRunner.update(connection, INSERT_STOCK_CTRL_CLEANER, params);
     }
 
     private static final String UPDATE_STOCK_CTRL_CLEANER = "update STOCK_CTRL_ClEANER t set t.host = ?, t.LOGIN_TIME = ? where t.id = ?";
+
     private void updateStockCtrlCleaner(Connection connection, StockCtrlCleaner cleaner) throws SQLException {
-        Object[] params = new Object[] {cleaner.getHost(), cleaner.getLoginTime(), cleaner.getId()};
+        Object[] params = new Object[]{cleaner.getHost(), cleaner.getLoginTime(), cleaner.getId()};
         queryRunner.update(connection, UPDATE_STOCK_CTRL_CLEANER, params);
     }
 
