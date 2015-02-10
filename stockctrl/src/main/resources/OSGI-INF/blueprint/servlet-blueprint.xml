@@ -10,6 +10,7 @@
             <cm:property name="timer.delay" value="60"/>
             <cm:property name="timer.period" value="60"/>
             <cm:property name="timeout.pay" value="40"/>
+            <cm:property name="limitCountPer" value="3"/>
         </cm:default-properties>
     </cm:property-placeholder>
 
@@ -29,6 +30,7 @@
         <property name="timerDelay" value="${timer.delay}"/>
         <property name="timerPeriod" value="${timer.period}"/>
         <property name="timeoutPay" value="${timeout.pay}"/>
+        <property name="limitCountPer" value="${limitCountPer}"/>
         <property name="queryRunner" ref="queryRunner"/>
     </bean>
 

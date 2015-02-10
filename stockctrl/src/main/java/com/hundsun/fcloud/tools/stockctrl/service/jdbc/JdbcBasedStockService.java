@@ -1,6 +1,7 @@
 package com.hundsun.fcloud.tools.stockctrl.service.jdbc;
 
 import com.hundsun.fcloud.tools.stockctrl.model.StockCtrl;
+import com.hundsun.fcloud.tools.stockctrl.model.StockCtrlCleaner;
 import com.hundsun.fcloud.tools.stockctrl.model.StockLimitation;
 import com.hundsun.fcloud.tools.stockctrl.model.StockState;
 import com.hundsun.fcloud.tools.stockctrl.service.AbstractStockService;
@@ -13,10 +14,8 @@ import org.apache.commons.dbutils.handlers.MapListHandler;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.sql.Timestamp;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -451,6 +450,66 @@ public class JdbcBasedStockService extends AbstractStockService {
         return stockCtrlList;
     }
 
+    private static final String ACTIVE_STOCK_STRL_CLEANER = "select * from STOCK_CTRL_ClEANER";
+    @Override
+    protected boolean isActiveStockStrlCleaner(String host, long timerPeriod) {
+        StockCtrlCleaner cleaner = new StockCtrlCleaner();
+        Connection connection = null;
+        try {
+            connection = queryRunner.getDataSource().getConnection();
+            List<Map<String, Object>> mapList = queryRunner.query(connection, ACTIVE_STOCK_STRL_CLEANER, new MapListHandler());
+            if (mapList.isEmpty()) {
+                cleaner.setId(1);
+                cleaner.setHost(host);
+                cleaner.setLoginTime(new Timestamp(System.currentTimeMillis()));
+                insertStockCtrlCleaner(connection, cleaner);
+                return true;
+            }
+
+            for (Map<String , Object> map : mapList) {
+                Date currentDate = new Date();
+
+                cleaner.setHost(map.get("host").toString());
+                cleaner.setId(Integer.parseInt(map.get("id").toString()));
+                cleaner.setLoginTime(((TIMESTAMP) map.get("LOGIN_TIME")).timestampValue());
+
+                Calendar calendar = Calendar.getInstance();
+                calendar.setTime(cleaner.getLoginTime());
+                calendar.set(Calendar.SECOND, calendar.get(Calendar.SECOND) + (int)timerPeriod);
+                if (host.equals(cleaner.getHost()) || calendar.getTime().before(currentDate)) {
+                    cleaner.setHost(host);
+                    cleaner.setLoginTime(new Timestamp(System.currentTimeMillis()));
+                    this.updateStockCtrlCleaner(connection, cleaner);
+                }
+                return true;
+            }
+        } catch (SQLException e) {
+            logger.error(e.getMessage(), e);
+        } finally {
+            if (connection != null) {
+                try {
+                    connection.close();
+                } catch (SQLException e) {
+                    logger.error(e.getMessage(), e);
+                }
+            }
+        }
+        return false;
+    }
+
+
+    protected static final String INSERT_STOCK_CTRL_CLEANER = "insert into STOCK_CTRL_ClEANER(id, host, LOGIN_TIME) values (?, ?, ?)";
+    protected void insertStockCtrlCleaner(Connection connection, StockCtrlCleaner cleaner) throws SQLException {
+        Object[] params = new Object[] {cleaner.getId(), cleaner.getHost(), cleaner.getLoginTime()};
+        logger.info("params: " + params);
+        queryRunner.update(connection, INSERT_STOCK_CTRL_CLEANER, params);
+    }
+
+    private static final String UPDATE_STOCK_CTRL_CLEANER = "update STOCK_CTRL_ClEANER t set t.host = ?, t.LOGIN_TIME = ? where t.id = ?";
+    private void updateStockCtrlCleaner(Connection connection, StockCtrlCleaner cleaner) throws SQLException {
+        Object[] params = new Object[] {cleaner.getHost(), cleaner.getLoginTime(), cleaner.getId()};
+        queryRunner.update(connection, UPDATE_STOCK_CTRL_CLEANER, params);
+    }
 
     private StockCtrl mapToStockCtrl(Map<String, Object> map) throws SQLException {
         String requestNo = (String) map.get("REQUEST_NO");
@@ -490,5 +549,6 @@ public class JdbcBasedStockService extends AbstractStockService {
 
         return stockLimitation;
     }
+
 
 }

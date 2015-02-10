@@ -7,7 +7,9 @@ import com.hundsun.fcloud.tools.stockctrl.model.StockState;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.Inet4Address;
 import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.sql.Timestamp;
 import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -179,6 +181,8 @@ public abstract class AbstractStockService implements StockService {
 
     protected abstract List<StockCtrl> loadAllStockCtrls();
 
+    protected abstract boolean isActiveStockStrlCleaner(String host, long timerPeriod);
+
     private class Cleaner extends TimerTask {
         /**
          *  每 1 分钟查询次数据库，判断下数据库中最后一次更新时间距离当前时间， 若超过 3 分钟， 则自己替换上去.
@@ -186,6 +190,18 @@ public abstract class AbstractStockService implements StockService {
 
         @Override
         public void run() {
+            try {
+                String host = Inet4Address.getLocalHost().getHostAddress();
+                if (! isActiveStockStrlCleaner(host, timerPeriod * 3)) {
+                    return;
+                }
+            } catch (UnknownHostException e) {
+                logger.error("获取本机IP异常", e);
+                throw new RuntimeException(e);
+            }
+            // TODO 判断当前清理机器是否为本机， 若是，则执行
+
+
             List<StockCtrl> stockCtrls = loadAllStockCtrls();
 
             Date currentDate = new Date();
