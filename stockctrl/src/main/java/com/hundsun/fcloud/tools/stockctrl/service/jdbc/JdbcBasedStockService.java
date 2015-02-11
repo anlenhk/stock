@@ -11,6 +11,7 @@ import org.apache.commons.dbutils.QueryRunner;
 import org.apache.commons.dbutils.handlers.MapHandler;
 import org.apache.commons.dbutils.handlers.MapListHandler;
 
+import javax.management.RuntimeOperationsException;
 import java.math.BigDecimal;
 import java.sql.Connection;
 import java.sql.SQLException;
@@ -53,15 +54,8 @@ public class JdbcBasedStockService extends AbstractStockService {
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
+            this.closeConnection(connection);
         }
-        //
         return null;
     }
 
@@ -98,14 +92,9 @@ public class JdbcBasedStockService extends AbstractStockService {
             }
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
+            throw new RuntimeException("锁库存前验证检查失败", e);
         } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
+            this.closeConnection(connection);
         }
     }
 
@@ -134,15 +123,10 @@ public class JdbcBasedStockService extends AbstractStockService {
             //
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
-            throw new RuntimeException(e);
+            this.rollbackConnection(connection);
+            throw new RuntimeException("所库存执行失败", e);
         } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
+            this.closeConnection(connection);
         }
     }
 
@@ -159,14 +143,9 @@ public class JdbcBasedStockService extends AbstractStockService {
 
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
+            throw new RuntimeException("解锁库存前检查失败", e);
         } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
+            this.closeConnection(connection);
         }
     }
 
@@ -191,14 +170,10 @@ public class JdbcBasedStockService extends AbstractStockService {
             connection.commit();
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
+            this.rollbackConnection(connection);
+            throw new RuntimeException("解锁库存操作失败", e);
         } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
+            this.closeConnection(connection);
         }
     }
 
@@ -227,14 +202,10 @@ public class JdbcBasedStockService extends AbstractStockService {
             //
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
+            this.rollbackConnection(connection);
+            throw new RuntimeException("减少库存失败", e);
         } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
+            this.closeConnection(connection);
         }
     }
 
@@ -338,13 +309,7 @@ public class JdbcBasedStockService extends AbstractStockService {
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
+            this.closeConnection(connection);
         }
         return null;
     }
@@ -409,13 +374,7 @@ public class JdbcBasedStockService extends AbstractStockService {
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
+            this.closeConnection(connection);
         }
         return results;
     }
@@ -429,13 +388,7 @@ public class JdbcBasedStockService extends AbstractStockService {
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
         } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
+            this.closeConnection(connection);
         }
         return null;
     }
@@ -493,14 +446,9 @@ public class JdbcBasedStockService extends AbstractStockService {
             }
         } catch (Exception e) {
             logger.error(e.getMessage(), e);
+            this.rollbackConnection(connection);
         } finally {
-            if (connection != null) {
-                try {
-                    connection.close();
-                } catch (SQLException e) {
-                    logger.error(e.getMessage(), e);
-                }
-            }
+            this.closeConnection(connection);
         }
         return false;
     }
@@ -559,5 +507,25 @@ public class JdbcBasedStockService extends AbstractStockService {
         return stockLimitation;
     }
 
+    private void rollbackConnection(Connection connection) {
+        if (connection == null) {
+            return;
+        }
+        try {
+            connection.rollback();
+        } catch (SQLException e) {
+            logger.error("事物回滚报错", e);
+        }
+    }
 
+    private void closeConnection(Connection connection) {
+        if (null == connection) {
+            return;
+        }
+        try {
+            connection.close();
+        } catch (SQLException e) {
+            logger.error("连接关闭失败", e);
+        }
+    }
 }
