@@ -199,7 +199,7 @@ public abstract class AbstractStockService implements StockService {
         @Override
         public void run() {
             try {
-                logger.info("执行定时器.....");
+                logger.debug("执行定时器.....");
                 String host = Inet4Address.getLocalHost().getHostAddress();
                 if (! isActiveStockStrlCleaner(host, timerPeriod * 3)) {
                     return;

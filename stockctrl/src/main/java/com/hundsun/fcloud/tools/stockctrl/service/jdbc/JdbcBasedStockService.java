@@ -112,6 +112,7 @@ public class JdbcBasedStockService extends AbstractStockService {
     @Override
     protected void afterSuccessLock(StockLimitation stockLimitation, StockCtrl lockedStockCtrl) {
         //
+        logger.debug("准备锁库存....");
         Connection connection = null;
         try {
             connection = queryRunner.getDataSource().getConnection();
@@ -127,7 +128,9 @@ public class JdbcBasedStockService extends AbstractStockService {
             this.updateStockLimitation(connection, limitation);
             insertStockCtrl(connection, lockedStockCtrl);
 
+            logger.debug("准备提交锁库存事物....");
             connection.commit();
+            logger.debug("锁库存事物提交成功 !");
             //
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
