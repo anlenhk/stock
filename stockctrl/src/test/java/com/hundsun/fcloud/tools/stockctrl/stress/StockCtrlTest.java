@@ -4,7 +4,7 @@ import com.hundsun.fcloud.servlet.api.ServletMessage;
 import com.hundsun.fcloud.servlet.api.ServletRequest;
 import com.hundsun.fcloud.servlet.api.ServletResponse;
 import com.hundsun.fcloud.servlet.caller.ServletCaller;
-import com.hundsun.fcloud.servlet.caller.impl.PoolableServletCaller;
+import com.hundsun.fcloud.servlet.caller.pool.PoolableServletCaller;
 import com.hundsun.fcloud.servlet.share.DefaultServletRequest;
 import org.junit.After;
 import org.junit.Before;
@@ -104,7 +104,7 @@ public class StockCtrlTest {
 
         @Override
         public void run() {
-            ServletCaller servletCaller = new PoolableServletCaller("localhost", 6161, 5);
+            ServletCaller servletCaller = new PoolableServletCaller(new String[]{"localhost"}, new int[]{6161}, 5);
             //
             ServletRequest servletRequest = new DefaultServletRequest();
             servletRequest.setHeader(ServletMessage.HEADER_CODEC, "26");
