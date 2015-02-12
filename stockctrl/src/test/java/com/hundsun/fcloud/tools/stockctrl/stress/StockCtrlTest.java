@@ -23,13 +23,17 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class StockCtrlTest {
 
-    private static final int POOL_SIZE = 5;
+    private static final int POOL_SIZE = 30;
 
-    private static final int CASE_SIZE = 200;
+    private static final int SERVLET_POOL_SIZE = 100;
 
-    private static final int THREAD_SLEEP_TIME = 30;
+    private static final int TIME_OUT = 10;
 
-    private static boolean hasUnexpected = false;
+    private static final int CASE_SIZE = 2000;
+
+    private static final int THREAD_SLEEP_TIME = 100;
+
+    private static boolean hasUnexpected = true;
 
     private static String fundCode = "600570";
 
@@ -39,14 +43,11 @@ public class StockCtrlTest {
 
     private static String requestNo_prefix = "20";
 
-    private static int balance = 500 * 100;
-
-
+    private static long balance = 500 * 100;
 
     private ExecutorService executorService;
 
     ServletCaller servletCaller;
-
 
     @Test
     public void testLock() throws Exception {
@@ -57,7 +58,7 @@ public class StockCtrlTest {
         }
 
         if (hasUnexpected) {
-            executorService.execute(new MyRunner(1, OperateType.LOCK.getValue()));
+            executorService.execute(new MyRunner(300, 1, OperateType.LOCK.getValue()));
             executorService.execute(new MyRunner(1, OperateType.LOCK.getValue()));
         }
 
@@ -67,15 +68,16 @@ public class StockCtrlTest {
     public void testUnLock() throws Exception {
         testLock();
 
-        TimeUnit.SECONDS.sleep(10);
+        TimeUnit.SECONDS.sleep(2);
 
         AtomicInteger atomic = new AtomicInteger(0);
-        while (atomic.get() < CASE_SIZE) {
+        while (atomic.get() < 0) {
             executorService.execute(new MyRunner(atomic.getAndAdd(1), OperateType.UNLOCK.getValue()));
         }
 
         if (hasUnexpected) {
-            executorService.execute(new MyRunner(1, OperateType.UNLOCK.getValue()));
+            executorService.execute(new MyRunner(300, 1,  OperateType.UNLOCK.getValue()));
+            executorService.execute(new MyRunner(300, 2,  OperateType.UNLOCK.getValue()));
         }
     }
 
@@ -83,7 +85,7 @@ public class StockCtrlTest {
     public void testDecrease() throws Exception {
         testLock();
 
-        TimeUnit.SECONDS.sleep(10);
+        TimeUnit.SECONDS.sleep(2);
 
         AtomicInteger atomic = new AtomicInteger(0);
         while (atomic.get() < CASE_SIZE) {
@@ -100,7 +102,7 @@ public class StockCtrlTest {
 
         testDecrease();
 
-        TimeUnit.SECONDS.sleep(10);
+        TimeUnit.SECONDS.sleep(2);
 
         AtomicInteger atomic = new AtomicInteger(0);
         while (atomic.get() < CASE_SIZE) {
@@ -115,10 +117,16 @@ public class StockCtrlTest {
     class MyRunner implements Runnable {
 
         private int flag;
+        private int tradeFlag;
         private int operateCode;
 
         public MyRunner(int flag, int operateCode) {
+            this(flag, flag, operateCode);
+        }
+
+        public MyRunner(int flag, int tradeFlag, int operateCode) {
             this.flag = flag;
+            this.tradeFlag = tradeFlag;
             this.operateCode = operateCode;
         }
 
@@ -135,7 +143,7 @@ public class StockCtrlTest {
             servletRequest.setParameter("requestNo", requestNo_prefix + "0" + flag);
             servletRequest.setParameter("balance", balance);
             servletRequest.setParameter("operateCode", operateCode);
-            servletRequest.setParameter("tradeAcco", tradeAcco_prefix + "00000" + flag);
+            servletRequest.setParameter("tradeAcco", tradeAcco_prefix + "00000" + tradeFlag);
             servletRequest.setParameter("fundCode", fundCode);
             servletRequest.setParameter("bizCode", bizCode);
             //
@@ -198,7 +206,7 @@ public class StockCtrlTest {
     public void start() {
         System.out.println("start.....");
         executorService = Executors.newFixedThreadPool(POOL_SIZE);
-        servletCaller = new PoolableServletCaller(new String[]{"localhost"}, new int[]{6161}, 5);
+        servletCaller = new PoolableServletCaller(new String[]{"localhost"}, new int[]{6161}, SERVLET_POOL_SIZE, TIME_OUT);
     }
 
     @After
