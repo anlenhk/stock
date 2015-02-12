@@ -14,7 +14,7 @@ import org.junit.Test;
 public class StockQueryTest {
 
     @Test
-    public void testQuery() {
+    public void testQuery() throws Exception {
         //
         ServletCaller servletCaller = new PoolableServletCaller(new String[]{"localhost"}, new int[]{6161}, 5);
         //

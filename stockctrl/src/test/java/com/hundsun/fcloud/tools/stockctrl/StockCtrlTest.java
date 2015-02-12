@@ -21,10 +21,11 @@ import java.util.concurrent.Future;
 public class StockCtrlTest {
 
     @Test
-    public void testLock() {
+    public void testLock() throws Exception {
         //
         final ServletCaller servletCaller = new PoolableServletCaller(new String[]{"localhost", "192.168.190.191"}, new int[]{6161, 6161}, 10);
         //
+<<<<<<< HEAD
         List<Future> futureList = new ArrayList<Future>();
         ExecutorService executorService = Executors.newFixedThreadPool(5);
         for(int i=0; i<200; i++) {
@@ -61,6 +62,14 @@ public class StockCtrlTest {
             //
             futureList.add(future);
         }
+=======
+        servletRequest.setParameter("requestNo", "20000011");
+        servletRequest.setParameter("balance", "4000");
+        servletRequest.setParameter("operateCode", "3");    // 0: lock  1:unlock  2: decrease(pay)  3: increase(unPay)
+        servletRequest.setParameter("tradeAcco", "T2000000000000001");
+        servletRequest.setParameter("fundCode", "600570");
+        servletRequest.setParameter("bizCode", "020");
+>>>>>>> fa7d14453edc7287f0ba13b12a1a37079a52aef4
         //
         for(Future future : futureList) {
             try {
