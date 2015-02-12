@@ -38,17 +38,6 @@ public class JdbcBasedStockService extends AbstractStockService {
             connection = queryRunner.getDataSource().getConnection();
             //
             List<StockLimitation> stockLimitationList = loadStockLimitations(connection);
-            /*for (StockLimitation stockLimitation : stockLimitationList) {
-                //
-                List<StockCtrl> stockCtrls = loadStockCtrlsByLimitName(connection, stockLimitation.getLimitName());
-                for (StockCtrl stockCtrl : stockCtrls) {
-                    stockLimitation.putStockCtrl(stockCtrl);
-                    AtomicInteger number = stockLimitation.getStockInvestors().get(stockCtrl.getTradeAcco());
-                    number.incrementAndGet();
-                    //
-                    stockLimitation.getStockAmount().addAndGet(stockCtrl.getBalance());
-                }
-            }*/
             return stockLimitationList;
             //
         } catch (SQLException e) {
@@ -77,7 +66,6 @@ public class JdbcBasedStockService extends AbstractStockService {
             }
 
             if (limitation != null) {
-                //TODO: 校验总人数 & 库存量
                 limitation = this.loadStockLimitationByName(connection, lockedStockCtrl.getStockCode() + "." + lockedStockCtrl.getBizCode());
                 if (limitation.getLimitAmount() < limitation.getCurrentAmount() + lockedStockCtrl.getBalance()) {
                     logger.error("库存余量不足 {} ", limitation.getLimitAmount() - limitation.getCurrentAmount());
@@ -142,9 +130,14 @@ public class JdbcBasedStockService extends AbstractStockService {
         try {
             connection = queryRunner.getDataSource().getConnection();
 
-            if (loadStatedStockCtrlByRequestNo(connection, stockCtrl.getRequestNo(), StockState.LOCKED.getValue()) == null) {
-                logger.error("锁定的库存中不存在申请编号为 {} 的库存！", stockCtrl.getRequestNo());
-                throw new StockCtrlException(String.format("锁定的库存中不存在申请编号为 %s 的库存！", stockCtrl.getRequestNo()));
+            StockCtrl storedStockCtrl = loadStatedStockCtrlByRequestNoAndTradeAcco(connection, stockCtrl.getRequestNo(), stockCtrl.getTradeAcco(), StockState.LOCKED.getValue());
+
+            if (storedStockCtrl == null) {
+                logger.error("锁定的库存中不存在交易账号为 {} 且 申请编号为 {} 的库存！",stockCtrl.getTradeAcco(), stockCtrl.getRequestNo());
+                throw new StockCtrlException(String.format("锁定的库存中不存在交易账号为 %s 且 申请编号为 %s 的库存！", stockCtrl.getTradeAcco(), stockCtrl.getRequestNo()));
+            } else if (storedStockCtrl.getBalance().longValue() != stockCtrl.getBalance().longValue()) {
+                logger.error("需要解锁的库存量 {}, 与数据库中锁定的库存量 {} 不一致", stockCtrl.getBalance(), storedStockCtrl.getBalance());
+                throw new StockCtrlException(String.format("需要解锁的库存量 %s, 与数据库中锁定的库存量 %s 不一致", stockCtrl.getBalance(), storedStockCtrl.getBalance()));
             }
 
         } catch (SQLException e) {
@@ -163,7 +156,6 @@ public class JdbcBasedStockService extends AbstractStockService {
 
             connection.setAutoCommit(false);
             deleteStockCtrl(connection, removedStockCtrl);
-            //TODO: 验证是否需要减少总库存 & 总人数., removedStockCtrl 或许需要以数据库中的为准
 
             if (limitation != null) {
                 int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, removedStockCtrl).size();
@@ -193,11 +185,15 @@ public class JdbcBasedStockService extends AbstractStockService {
         try {
             connection = queryRunner.getDataSource().getConnection();
 
-            if (loadStatedStockCtrlByRequestNo(connection, stockCtrl.getRequestNo(), StockState.PAID.getValue()) == null) {
-                logger.error("库存中不存在申请编号为 {} 的 【已支付】 的 库存！", stockCtrl.getRequestNo());
-                throw new StockCtrlException(String.format("库存中不存在申请编号为 %s 的 【已支付】 库存！", stockCtrl.getRequestNo()));
-            }
+            StockCtrl storedStockCtrl = loadStatedStockCtrlByRequestNoAndTradeAcco(connection, stockCtrl.getRequestNo(), stockCtrl.getTradeAcco(), StockState.PAID.getValue());
 
+            if (storedStockCtrl == null) {
+                logger.error("库存中不存在交易账号为 {} 且 申请编号为 {} 的 【已支付】 的 库存！", stockCtrl.getTradeAcco(), stockCtrl.getRequestNo());
+                throw new StockCtrlException(String.format("库存中不存在交易账号为 %s 且 申请编号为 %s 的 【已支付】 库存！", stockCtrl.getTradeAcco(), stockCtrl.getRequestNo()));
+            }  else if (storedStockCtrl.getBalance().longValue() != stockCtrl.getBalance().longValue()) {
+                logger.error("需要增加的库存量 {}, 与数据库中锁定的库存量 {} 不一致", stockCtrl.getBalance(), storedStockCtrl.getBalance());
+                throw new StockCtrlException(String.format("需要增加的库存量 %s, 与数据库中锁定的库存量 %s 不一致", stockCtrl.getBalance(), storedStockCtrl.getBalance()));
+            }
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
             throw new RuntimeException("增加库存前检查失败", e);
@@ -368,12 +364,12 @@ public class JdbcBasedStockService extends AbstractStockService {
         return stockCtrlList;
     }
 
-    private static final String LOAD_STATED_STOCK_CTRL_BY_REQUEST_NO = "select * from STOCK_CTRL_LIST " +
-            "where REQUEST_NO = ? and state = ?";
-    private StockCtrl loadStatedStockCtrlByRequestNo(Connection connection, String requestNo, int state) throws SQLException {
-        Object[] params = new Object[] {requestNo, state};
+    private static final String LOAD_STATED_STOCK_CTRL_BY_REQUEST_NO_AND_TRADEACCO = "select * from STOCK_CTRL_LIST " +
+            "where REQUEST_NO = ? and TRADE_ACCO = ? and state = ?";
+    private StockCtrl loadStatedStockCtrlByRequestNoAndTradeAcco(Connection connection, String requestNo, String tradeAcco, int state) throws SQLException {
+        Object[] params = new Object[] {requestNo, tradeAcco, state};
         StockCtrl stockCtrl = null;
-        List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STATED_STOCK_CTRL_BY_REQUEST_NO, new MapListHandler(), params);
+        List<Map<String, Object>> mapList = queryRunner.query(connection, LOAD_STATED_STOCK_CTRL_BY_REQUEST_NO_AND_TRADEACCO, new MapListHandler(), params);
         for (Map<String, Object> map : mapList) {
             stockCtrl = this.mapToStockCtrl(map);
         }
