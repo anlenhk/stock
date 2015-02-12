@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class StockCtrlTest {
 
-    private static final int POOL_SIZE = 50;
+    private static final int POOL_SIZE = 5;
 
     private static final int CASE_SIZE = 200;
 
@@ -45,7 +45,7 @@ public class StockCtrlTest {
 
     private ExecutorService executorService;
 
-    ServletCaller servletCaller = new PoolableServletCaller(new String[]{"localhost"}, new int[]{6161}, 20);
+    ServletCaller servletCaller;
 
 
     @Test
@@ -67,7 +67,7 @@ public class StockCtrlTest {
     public void testUnLock() throws Exception {
         testLock();
 
-        TimeUnit.SECONDS.sleep(2);
+        TimeUnit.SECONDS.sleep(10);
 
         AtomicInteger atomic = new AtomicInteger(0);
         while (atomic.get() < CASE_SIZE) {
@@ -83,7 +83,7 @@ public class StockCtrlTest {
     public void testDecrease() throws Exception {
         testLock();
 
-        TimeUnit.SECONDS.sleep(2);
+        TimeUnit.SECONDS.sleep(10);
 
         AtomicInteger atomic = new AtomicInteger(0);
         while (atomic.get() < CASE_SIZE) {
@@ -100,7 +100,7 @@ public class StockCtrlTest {
 
         testDecrease();
 
-        TimeUnit.SECONDS.sleep(2);
+        TimeUnit.SECONDS.sleep(10);
 
         AtomicInteger atomic = new AtomicInteger(0);
         while (atomic.get() < CASE_SIZE) {
@@ -124,7 +124,6 @@ public class StockCtrlTest {
 
         @Override
         public void run() {
-
             //
             ServletRequest servletRequest = new DefaultServletRequest();
             servletRequest.setHeader(ServletMessage.HEADER_CODEC, "26");
@@ -149,8 +148,6 @@ public class StockCtrlTest {
                 e.printStackTrace();
             }
 
-            //
-            servletCaller.close();
         }
     }
 
@@ -201,12 +198,14 @@ public class StockCtrlTest {
     public void start() {
         System.out.println("start.....");
         executorService = Executors.newFixedThreadPool(POOL_SIZE);
+        servletCaller = new PoolableServletCaller(new String[]{"localhost"}, new int[]{6161}, 5);
     }
 
     @After
     public void stop() throws  Exception {
         TimeUnit.SECONDS.sleep(THREAD_SLEEP_TIME);
         System.out.println("stop.....");
+        servletCaller.close();
         executorService.shutdown();
         System.out.println("stopped !");
     }
