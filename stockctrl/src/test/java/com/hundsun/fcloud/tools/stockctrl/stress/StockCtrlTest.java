@@ -23,27 +23,34 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class StockCtrlTest {
 
-    private static final int POOL_SIZE = 10;
+    private static final int POOL_SIZE = 50;
 
-    private static final int CASE_SIZE = 5;
+    private static final int CASE_SIZE = 200;
+
+    private static final int THREAD_SLEEP_TIME = 30;
 
     private static boolean hasUnexpected = false;
 
     private static String fundCode = "600570";
 
-    private static String bizCode = "020";
+    private static String bizCode = "022";
 
-    private static String tradeAcco_prefix = "T2";
+    private static String tradeAcco_prefix = "T1";
 
     private static String requestNo_prefix = "20";
 
-    private static int balance = 400;
+    private static int balance = 500 * 100;
+
+
 
     private ExecutorService executorService;
+
+    ServletCaller servletCaller = new PoolableServletCaller(new String[]{"localhost"}, new int[]{6161}, 20);
 
 
     @Test
     public void testLock() throws Exception {
+
         AtomicInteger atomic = new AtomicInteger(0);
         while (atomic.get() < CASE_SIZE) {
             executorService.execute(new MyRunner(atomic.getAndAdd(1), OperateType.LOCK.getValue()));
@@ -117,7 +124,7 @@ public class StockCtrlTest {
 
         @Override
         public void run() {
-            ServletCaller servletCaller = new PoolableServletCaller(new String[]{"localhost"}, new int[]{6161}, 5);
+
             //
             ServletRequest servletRequest = new DefaultServletRequest();
             servletRequest.setHeader(ServletMessage.HEADER_CODEC, "26");
@@ -126,10 +133,10 @@ public class StockCtrlTest {
             servletRequest.setParameter("netNo", "8888");
             servletRequest.setParameter("operatorCode", "06843");
             //
-            servletRequest.setParameter("requestNo", requestNo_prefix + "00000" + flag);
+            servletRequest.setParameter("requestNo", requestNo_prefix + "0" + flag);
             servletRequest.setParameter("balance", balance);
             servletRequest.setParameter("operateCode", operateCode);
-            servletRequest.setParameter("tradeAcco", tradeAcco_prefix + "00000000000000" + flag);
+            servletRequest.setParameter("tradeAcco", tradeAcco_prefix + "00000" + flag);
             servletRequest.setParameter("fundCode", fundCode);
             servletRequest.setParameter("bizCode", bizCode);
             //
@@ -198,7 +205,7 @@ public class StockCtrlTest {
 
     @After
     public void stop() throws  Exception {
-        TimeUnit.SECONDS.sleep(20);
+        TimeUnit.SECONDS.sleep(THREAD_SLEEP_TIME);
         System.out.println("stop.....");
         executorService.shutdown();
         System.out.println("stopped !");
