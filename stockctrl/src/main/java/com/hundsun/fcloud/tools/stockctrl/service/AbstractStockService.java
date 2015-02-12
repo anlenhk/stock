@@ -19,9 +19,9 @@ public abstract class AbstractStockService implements StockService {
 
     protected static final Logger logger = LoggerFactory.getLogger(StockService.class);
 
-    private long timerDelay;  // SECOND
+    private long timerDelay;  // millSecond * 1000
 
-    private long timerPeriod; // SECOND
+    private long timerPeriod; // millSecond * 1000
 
     private int timeoutPay; // MINUTE
 
@@ -189,7 +189,7 @@ public abstract class AbstractStockService implements StockService {
             try {
                 logger.debug("执行定时器.....");
                 String host = Inet4Address.getLocalHost().getHostAddress();
-                if (! isActiveStockStrlCleaner(host, timerPeriod * 3)) {
+                if (! isActiveStockStrlCleaner(host, timerPeriod * 3 / 1000)) {
                     return;
                 }
             } catch (UnknownHostException e) {
