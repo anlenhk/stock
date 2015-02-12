@@ -14,7 +14,7 @@ import org.junit.Test;
 public class StockCtrlTest {
 
     @Test
-    public void testLock() {
+    public void testLock() throws Exception {
         //
         ServletCaller servletCaller = new PoolableServletCaller(new String[]{"localhost"}, new int[]{6161}, 5);
         //
@@ -25,12 +25,12 @@ public class StockCtrlTest {
         servletRequest.setParameter("netNo", "8888");
         servletRequest.setParameter("operatorCode", "06843");
         //
-        servletRequest.setParameter("requestNo", "20000003");
+        servletRequest.setParameter("requestNo", "20000011");
         servletRequest.setParameter("balance", "4000");
-        servletRequest.setParameter("operateCode", "1");
+        servletRequest.setParameter("operateCode", "3");    // 0: lock  1:unlock  2: decrease(pay)  3: increase(unPay)
         servletRequest.setParameter("tradeAcco", "T2000000000000001");
         servletRequest.setParameter("fundCode", "600570");
-        servletRequest.setParameter("bizCode", "021");
+        servletRequest.setParameter("bizCode", "020");
         //
         ServletResponse servletResponse = servletCaller.call(servletRequest);
         System.out.println(servletResponse.getParameter("flag"));

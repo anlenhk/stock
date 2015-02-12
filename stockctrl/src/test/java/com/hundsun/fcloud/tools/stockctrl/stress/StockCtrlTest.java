@@ -23,11 +23,21 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class StockCtrlTest {
 
-    public static final int POOL_SIZE = 20;
+    private static final int POOL_SIZE = 10;
 
-    public static final int CASE_SIZE = 20;
+    private static final int CASE_SIZE = 5;
 
-    private boolean hasUnexpected = false;
+    private static boolean hasUnexpected = false;
+
+    private static String fundCode = "600570";
+
+    private static String bizCode = "020";
+
+    private static String tradeAcco_prefix = "T2";
+
+    private static String requestNo_prefix = "20";
+
+    private static int balance = 400;
 
     private ExecutorService executorService;
 
@@ -36,7 +46,6 @@ public class StockCtrlTest {
     public void testLock() throws Exception {
         AtomicInteger atomic = new AtomicInteger(0);
         while (atomic.get() < CASE_SIZE) {
-            System.out.println(atomic.get());
             executorService.execute(new MyRunner(atomic.getAndAdd(1), OperateType.LOCK.getValue()));
         }
 
@@ -50,6 +59,8 @@ public class StockCtrlTest {
     @Test
     public void testUnLock() throws Exception {
         testLock();
+
+        TimeUnit.SECONDS.sleep(2);
 
         AtomicInteger atomic = new AtomicInteger(0);
         while (atomic.get() < CASE_SIZE) {
@@ -65,7 +76,7 @@ public class StockCtrlTest {
     public void testDecrease() throws Exception {
         testLock();
 
-        Thread.sleep(5 * 1000);
+        TimeUnit.SECONDS.sleep(2);
 
         AtomicInteger atomic = new AtomicInteger(0);
         while (atomic.get() < CASE_SIZE) {
@@ -79,9 +90,10 @@ public class StockCtrlTest {
 
     @Test
     public void testIncrease() throws Exception {
-        testLock();
 
-        Thread.sleep(3 * 1000);
+        testDecrease();
+
+        TimeUnit.SECONDS.sleep(2);
 
         AtomicInteger atomic = new AtomicInteger(0);
         while (atomic.get() < CASE_SIZE) {
@@ -114,17 +126,21 @@ public class StockCtrlTest {
             servletRequest.setParameter("netNo", "8888");
             servletRequest.setParameter("operatorCode", "06843");
             //
-            servletRequest.setParameter("requestNo", "1000000" + flag);
-            servletRequest.setParameter("balance", "10000");
+            servletRequest.setParameter("requestNo", requestNo_prefix + "00000" + flag);
+            servletRequest.setParameter("balance", balance);
             servletRequest.setParameter("operateCode", operateCode);
-            servletRequest.setParameter("tradeAcco", "T100000000000000" + flag);
-            servletRequest.setParameter("fundCode", "600570");
-            servletRequest.setParameter("bizCode", "022");
+            servletRequest.setParameter("tradeAcco", tradeAcco_prefix + "00000000000000" + flag);
+            servletRequest.setParameter("fundCode", fundCode);
+            servletRequest.setParameter("bizCode", bizCode);
             //
-            ServletResponse servletResponse = servletCaller.call(servletRequest);
-            System.out.println(servletResponse.getParameter("flag"));
-            System.out.println(servletResponse.getParameter("errorCode"));
-            System.out.println(servletResponse.getParameter("errorMsg"));
+            try {
+                ServletResponse servletResponse = servletCaller.call(servletRequest);
+                System.out.println(servletResponse.getParameter("flag"));
+                System.out.println(servletResponse.getParameter("errorCode"));
+                System.out.println(servletResponse.getParameter("errorMsg"));
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
 
             //
             servletCaller.close();
@@ -182,7 +198,7 @@ public class StockCtrlTest {
 
     @After
     public void stop() throws  Exception {
-        TimeUnit.MINUTES.sleep(1);
+        TimeUnit.SECONDS.sleep(20);
         System.out.println("stop.....");
         executorService.shutdown();
         System.out.println("stopped !");
