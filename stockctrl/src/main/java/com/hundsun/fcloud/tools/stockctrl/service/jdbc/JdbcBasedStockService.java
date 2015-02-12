@@ -102,10 +102,10 @@ public class JdbcBasedStockService extends AbstractStockService {
             if (limitation != null) {
                 limitation = this.loadStockLimitationByName(connection, limitation.getLimitName());
                 if (size == 0) {
-                    limitation.setCurrentInvestors(limitation.getCurrentInvestors() + 1);
+                    limitation.setCurrentInvestors(1);
                 }
 
-                limitation.setCurrentAmount(limitation.getCurrentAmount() + lockedStockCtrl.getBalance());
+                limitation.setCurrentAmount(lockedStockCtrl.getBalance());
                 this.updateStockLimitation(connection, limitation);
             }
 
@@ -161,9 +161,9 @@ public class JdbcBasedStockService extends AbstractStockService {
                 int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, removedStockCtrl).size();
 
                 limitation = this.loadStockLimitationByName(connection, limitation.getLimitName());
-                limitation.setCurrentAmount(limitation.getCurrentAmount() - removedStockCtrl.getBalance());
+                limitation.setCurrentAmount(- removedStockCtrl.getBalance());
                 if (size == 0) {
-                    limitation.setCurrentInvestors(limitation.getCurrentInvestors() - 1);
+                    limitation.setCurrentInvestors(- 1);
                 }
                 //
                 this.updateStockLimitation(connection, limitation);
@@ -335,7 +335,7 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     private static final String UPDATE_STOCK_LIMITATION_SQL = "update stock_limitation t " +
-            "  set t.limit_amount = ?, t.limit_investors = ?, t.current_amount = ?, t.current_investors =? " +
+            "  set t.limit_amount = ?, t.limit_investors = ?, t.current_amount = t.current_amount + ?, t.current_investors = t.current_investors + ? " +
             "  where t.limit_name = ?";
 
     private void updateStockLimitation(Connection connection, StockLimitation stockLimitation) throws SQLException {
