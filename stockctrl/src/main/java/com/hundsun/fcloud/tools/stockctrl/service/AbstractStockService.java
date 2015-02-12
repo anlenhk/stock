@@ -100,9 +100,6 @@ public abstract class AbstractStockService implements StockService {
     public void unlock(StockCtrl stockCtrl) {
         //
         StockLimitation stockLimitation = getStockLimitation(getKeyWithStockCtrl(stockCtrl));
-        if(stockLimitation==null) {
-            return;
-        }
 
         beforeUnlock(stockCtrl);
 

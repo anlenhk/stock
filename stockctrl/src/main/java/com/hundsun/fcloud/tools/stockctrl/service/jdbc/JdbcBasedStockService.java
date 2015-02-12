@@ -156,7 +156,7 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     @Override
-    protected void afterSuccessUnlock(StockLimitation stockLimitation, StockCtrl removedStockCtrl) {
+    protected void afterSuccessUnlock(StockLimitation limitation, StockCtrl removedStockCtrl) {
         Connection connection = null;
         try {
             connection = queryRunner.getDataSource().getConnection();
@@ -164,15 +164,19 @@ public class JdbcBasedStockService extends AbstractStockService {
             connection.setAutoCommit(false);
             deleteStockCtrl(connection, removedStockCtrl);
             //TODO: 验证是否需要减少总库存 & 总人数., removedStockCtrl 或许需要以数据库中的为准
-            int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, removedStockCtrl).size();
 
-            StockLimitation limitation = this.loadStockLimitationByName(connection, stockLimitation.getLimitName());
-            limitation.setCurrentAmount(limitation.getCurrentAmount() - removedStockCtrl.getBalance());
-            if (size == 0) {
-                limitation.setCurrentInvestors(limitation.getCurrentInvestors() - 1);
+            if (limitation != null) {
+                int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, removedStockCtrl).size();
+
+                limitation = this.loadStockLimitationByName(connection, limitation.getLimitName());
+                limitation.setCurrentAmount(limitation.getCurrentAmount() - removedStockCtrl.getBalance());
+                if (size == 0) {
+                    limitation.setCurrentInvestors(limitation.getCurrentInvestors() - 1);
+                }
+                //
+                this.updateStockLimitation(connection, limitation);
             }
-            //
-            this.updateStockLimitation(connection, limitation);
+
             connection.commit();
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
