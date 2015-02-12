@@ -115,9 +115,6 @@ public abstract class AbstractStockService implements StockService {
     public void increase(StockCtrl stockCtrl) {
         //
         StockLimitation stockLimitation = getStockLimitation(getKeyWithStockCtrl(stockCtrl));
-        if(stockLimitation==null) {
-            return;
-        }
 
         this.beforeIncrease(stockCtrl);
 

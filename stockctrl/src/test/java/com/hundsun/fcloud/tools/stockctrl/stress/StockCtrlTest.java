@@ -23,9 +23,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public class StockCtrlTest {
 
-    public static final int POOL_SIZE = 10;
+    public static final int POOL_SIZE = 20;
 
-    public static final int CASE_SIZE = 2;
+    public static final int CASE_SIZE = 20;
 
     private boolean hasUnexpected = false;
 
@@ -36,6 +36,7 @@ public class StockCtrlTest {
     public void testLock() throws Exception {
         AtomicInteger atomic = new AtomicInteger(0);
         while (atomic.get() < CASE_SIZE) {
+            System.out.println(atomic.get());
             executorService.execute(new MyRunner(atomic.getAndAdd(1), OperateType.LOCK.getValue()));
         }
 

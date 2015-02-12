@@ -25,12 +25,12 @@ public class StockCtrlTest {
         servletRequest.setParameter("netNo", "8888");
         servletRequest.setParameter("operatorCode", "06843");
         //
-        servletRequest.setParameter("requestNo", "10000001");
-        servletRequest.setParameter("balance", "10000");
-        servletRequest.setParameter("operateCode", "0");
-        servletRequest.setParameter("tradeAcco", "T1000000000000001");
+        servletRequest.setParameter("requestNo", "20000003");
+        servletRequest.setParameter("balance", "4000");
+        servletRequest.setParameter("operateCode", "1");
+        servletRequest.setParameter("tradeAcco", "T2000000000000001");
         servletRequest.setParameter("fundCode", "600570");
-        servletRequest.setParameter("bizCode", "022");
+        servletRequest.setParameter("bizCode", "021");
         //
         ServletResponse servletResponse = servletCaller.call(servletRequest);
         System.out.println(servletResponse.getParameter("flag"));
