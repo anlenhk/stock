@@ -59,13 +59,13 @@ public class JdbcBasedStockService extends AbstractStockService {
                 throw new RuntimeException("申请编号重复: " + lockedStockCtrl.getRequestNo());
             }
 
-            int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, lockedStockCtrl).size();
-            if (size >= limitCountPer) {
-                logger.error("交易账号为 {} , 对 {}.{} 的申请次数已经达到上限 {}!", lockedStockCtrl.getTradeAcco(), lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode(), limitCountPer);
-                throw new RuntimeException("单个账号交易申请次数达上限");
-            }
-
             if (limitation != null) {
+                int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, lockedStockCtrl).size();
+                if (size >= limitCountPer) {
+                    logger.error("交易账号为 {} , 对 {}.{} 的申请次数已经达到上限 {}!", lockedStockCtrl.getTradeAcco(), lockedStockCtrl.getStockCode(), lockedStockCtrl.getBizCode(), limitCountPer);
+                    throw new RuntimeException("单个账号交易申请次数达上限");
+                }
+
                 limitation = this.loadStockLimitationByName(connection, lockedStockCtrl.getStockCode() + "." + lockedStockCtrl.getBizCode());
                 if (limitation.getLimitAmount() < limitation.getCurrentAmount() + lockedStockCtrl.getBalance()) {
                     logger.error("库存余量不足 {} ", limitation.getLimitAmount() - limitation.getCurrentAmount());
