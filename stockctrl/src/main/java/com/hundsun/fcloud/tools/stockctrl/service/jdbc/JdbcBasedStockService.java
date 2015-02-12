@@ -38,7 +38,7 @@ public class JdbcBasedStockService extends AbstractStockService {
             connection = queryRunner.getDataSource().getConnection();
             //
             List<StockLimitation> stockLimitationList = loadStockLimitations(connection);
-            for (StockLimitation stockLimitation : stockLimitationList) {
+            /*for (StockLimitation stockLimitation : stockLimitationList) {
                 //
                 List<StockCtrl> stockCtrls = loadStockCtrlsByLimitName(connection, stockLimitation.getLimitName());
                 for (StockCtrl stockCtrl : stockCtrls) {
@@ -48,7 +48,7 @@ public class JdbcBasedStockService extends AbstractStockService {
                     //
                     stockLimitation.getStockAmount().addAndGet(stockCtrl.getBalance());
                 }
-            }
+            }*/
             return stockLimitationList;
             //
         } catch (SQLException e) {
@@ -60,7 +60,7 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     @Override
-    protected void beforeLock(StockCtrl lockedStockCtrl, int limitCountPer) {
+    protected void beforeLock(StockCtrl lockedStockCtrl,  StockLimitation limitation, int limitCountPer) {
         Connection connection = null;
         try {
             connection = queryRunner.getDataSource().getConnection();
@@ -76,19 +76,21 @@ public class JdbcBasedStockService extends AbstractStockService {
                 throw new RuntimeException("单个账号交易申请次数达上限");
             }
 
-            //TODO: 校验总人数 & 库存量
-            StockLimitation limitation = this.loadStockLimitationByName(connection, lockedStockCtrl.getStockCode() + "." + lockedStockCtrl.getBizCode());
-            if (limitation.getLimitAmount() < limitation.getCurrentAmount() + lockedStockCtrl.getBalance()) {
-                logger.error("库存余量不足 {} ", limitation.getLimitAmount() - limitation.getCurrentAmount());
-                throw new RuntimeException("库存余量不足.");
-            }
+            if (limitation != null) {
+                //TODO: 校验总人数 & 库存量
+                limitation = this.loadStockLimitationByName(connection, lockedStockCtrl.getStockCode() + "." + lockedStockCtrl.getBizCode());
+                if (limitation.getLimitAmount() < limitation.getCurrentAmount() + lockedStockCtrl.getBalance()) {
+                    logger.error("库存余量不足 {} ", limitation.getLimitAmount() - limitation.getCurrentAmount());
+                    throw new RuntimeException("库存余量不足.");
+                }
 
-            if (limitation.getLimitInvestors() < limitation.getCurrentInvestors()) {
-                logger.error("购买人数超上限");
-                throw new RuntimeException("购买人数超上限.");
-            } else if (limitation.getLimitInvestors() == limitation.getCurrentInvestors() && size == 0) {
-                logger.error("购买人数超上限");
-                throw new RuntimeException("购买人数超上限.");
+                if (limitation.getLimitInvestors() < limitation.getCurrentInvestors()) {
+                    logger.error("购买人数超上限");
+                    throw new RuntimeException("购买人数超上限.");
+                } else if (limitation.getLimitInvestors() == limitation.getCurrentInvestors() && size == 0) {
+                    logger.error("购买人数超上限");
+                    throw new RuntimeException("购买人数超上限.");
+                }
             }
         } catch (SQLException e) {
             logger.error(e.getMessage(), e);
@@ -99,7 +101,7 @@ public class JdbcBasedStockService extends AbstractStockService {
     }
 
     @Override
-    protected void afterSuccessLock(StockLimitation stockLimitation, StockCtrl lockedStockCtrl) {
+    protected void afterSuccessLock(StockLimitation limitation, StockCtrl lockedStockCtrl) {
         //
         logger.debug("准备锁库存....");
         Connection connection = null;
@@ -108,13 +110,17 @@ public class JdbcBasedStockService extends AbstractStockService {
             connection.setAutoCommit(false);
 
             int size = this.loadStocksCtrlByTradeAccoAndLimitName(connection, lockedStockCtrl).size();
-            StockLimitation limitation = this.loadStockLimitationByName(connection, stockLimitation.getLimitName());
-            if (size == 0) {
-                limitation.setCurrentInvestors(limitation.getCurrentInvestors() + 1);
+
+            if (limitation != null) {
+                limitation = this.loadStockLimitationByName(connection, limitation.getLimitName());
+                if (size == 0) {
+                    limitation.setCurrentInvestors(limitation.getCurrentInvestors() + 1);
+                }
+
+                limitation.setCurrentAmount(limitation.getCurrentAmount() + lockedStockCtrl.getBalance());
+                this.updateStockLimitation(connection, limitation);
             }
 
-            limitation.setCurrentAmount(limitation.getCurrentAmount() + lockedStockCtrl.getBalance());
-            this.updateStockLimitation(connection, limitation);
             insertStockCtrl(connection, lockedStockCtrl);
 
             logger.debug("准备提交锁库存事物....");

@@ -78,17 +78,14 @@ public abstract class AbstractStockService implements StockService {
 
     protected abstract List<StockLimitation> loadStockLimitations();
 
-    protected abstract void beforeLock(StockCtrl lockedStockCtrl, int limitCountPer);
+    protected abstract void beforeLock(StockCtrl lockedStockCtrl, StockLimitation limitation, int limitCountPer);
 
     @Override
     public void lock(StockCtrl stockCtrl) {
         //
         StockLimitation stockLimitation = getStockLimitation(getKeyWithStockCtrl(stockCtrl));
-        if(stockLimitation==null) {
-            return;
-        }
 
-        beforeLock(stockCtrl, limitCountPer);
+        beforeLock(stockCtrl, stockLimitation, limitCountPer);
 
         stockCtrl.setRequestDate(new Timestamp(System.currentTimeMillis()));
 
