@@ -103,6 +103,8 @@ public class JdbcBasedStockService extends AbstractStockService {
                 limitation = this.loadStockLimitationByName(connection, limitation.getLimitName());
                 if (size == 0) {
                     limitation.setCurrentInvestors(1);
+                } else {
+                    limitation.setCurrentInvestors(0);
                 }
 
                 limitation.setCurrentAmount(lockedStockCtrl.getBalance());
@@ -164,6 +166,8 @@ public class JdbcBasedStockService extends AbstractStockService {
                 limitation.setCurrentAmount(- removedStockCtrl.getBalance());
                 if (size == 0) {
                     limitation.setCurrentInvestors(- 1);
+                } else {
+                    limitation.setCurrentInvestors(0);
                 }
                 //
                 this.updateStockLimitation(connection, limitation);
