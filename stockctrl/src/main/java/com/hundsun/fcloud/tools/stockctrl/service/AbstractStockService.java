@@ -156,6 +156,8 @@ public abstract class AbstractStockService implements StockService {
         if (null == limitation) {
             return stockQuery;
         }
+        //
+        limitation = loadStockLimitationByLimitName(getKeyWithQueryCtrl(stockQuery));
 
         stockQuery.setTotalBalance(limitation.getLimitAmount());
         stockQuery.setRemainBalance(limitation.getLimitAmount() - limitation.getCurrentAmount());
